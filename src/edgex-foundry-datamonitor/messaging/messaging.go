@@ -17,13 +17,21 @@ type Client struct {
 }
 
 func NewClient(cfg *config.Config) (*Client, error) {
+
+	cnf := config.DefaultConfig()
+
+	if cfg != nil {
+		cnf = cfg
+	}
+
 	messageBus, err := edgexM.NewMessageClient(types.MessageBusConfig{
-		PublishHost: types.HostInfo{
-			Host:     config.StringVal(cfg.RedisHost),
-			Port:     config.IntVal(cfg.RedisPort),
+		SubscribeHost: types.HostInfo{
+			Host:     config.StringVal(cnf.RedisHost),
+			Port:     config.IntVal(cnf.RedisPort),
 			Protocol: edgexM.Redis,
 		},
-		Type: edgexM.Redis})
+		Type: edgexM.Redis,
+	})
 
 	if err != nil {
 		return nil, err
@@ -70,4 +78,28 @@ func (c *Client) Disconnect() error {
 	c.IsConnected = false
 	//TODO handle error
 	return nil
+}
+
+func (c *Client) Subscribe(topic string) (chan types.MessageEnvelope, chan error) {
+	messages := make(chan types.MessageEnvelope)
+	errorChannel := make(chan error)
+
+	err := c.edgeXClient.Subscribe([]types.TopicChannel{
+		{
+			Topic:    topic,
+			Messages: messages,
+		},
+	}, errorChannel)
+
+	if err != nil {
+		errorChannel <- err
+	}
+
+	// events := make(chan *dtos.Event)
+	// msgEnvelope := <-messages
+	// //gracePeriod.Stop()
+	// event, err := parseEvent(msgEnvelope.Payload)
+	// events <- event
+
+	return messages, errorChannel
 }

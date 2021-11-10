@@ -12,19 +12,32 @@ const (
 const (
 	RedisDefaultHost = "localhost"
 	RedisDefaultPort = 6379
+
+	DefaultEventsTopic = "edgex/events/device/#"
 )
 
 type Config struct {
 	RedisHost *string
 	RedisPort *int
+
+	EventsTopic string
 }
 
 func GetConfig() *Config {
 	a := fyne.CurrentApp()
 
 	return &Config{
-		RedisHost: String(a.Preferences().StringWithFallback(prefRedisHost, RedisDefaultHost)),
-		RedisPort: Int(a.Preferences().IntWithFallback(prefRedisPort, RedisDefaultPort)),
+		RedisHost:   String(a.Preferences().StringWithFallback(prefRedisHost, RedisDefaultHost)),
+		RedisPort:   Int(a.Preferences().IntWithFallback(prefRedisPort, RedisDefaultPort)),
+		EventsTopic: DefaultEventsTopic,
+	}
+}
+
+func DefaultConfig() *Config {
+	return &Config{
+		RedisHost:   String(RedisDefaultHost),
+		RedisPort:   Int(RedisDefaultPort),
+		EventsTopic: DefaultEventsTopic,
 	}
 }
 

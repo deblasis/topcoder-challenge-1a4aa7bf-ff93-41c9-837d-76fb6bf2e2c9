@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://github.com/edgexfoundry/edgex-examples
+HostUrl=https://codeload.github.com/edgexfoundry/edgex-examples/zip/refs/heads/main

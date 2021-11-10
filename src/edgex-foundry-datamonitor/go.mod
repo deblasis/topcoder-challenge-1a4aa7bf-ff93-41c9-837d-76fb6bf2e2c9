@@ -5,6 +5,9 @@ go 1.16
 require fyne.io/fyne/v2 v2.1.1
 
 require (
+	github.com/asecurityteam/rolling v2.0.4+incompatible // indirect
+	github.com/edgexfoundry/core-domain-go v0.0.0-20180130224812-7acdb6490aba // indirect
+	github.com/edgexfoundry/go-mod-core-contracts v0.1.149 // indirect
 	github.com/edgexfoundry/go-mod-messaging/v2 v2.0.1
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-gl/gl v0.0.0-20211025173605-bda47ffaa784 // indirect
@@ -12,11 +15,13 @@ require (
 	github.com/godbus/dbus/v5 v5.0.6 // indirect
 	github.com/srwiley/oksvg v0.0.0-20211104221756-aeb4ca2c1505 // indirect
 	github.com/srwiley/rasterx v0.0.0-20210519020934-456a8d69b780 // indirect
+	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/yuin/goldmark v1.4.2 // indirect
 	golang.org/x/image v0.0.0-20211028202545-6944b10bf410 // indirect
 	golang.org/x/net v0.0.0-20211105192438-b53810dc28af // indirect
 	golang.org/x/sys v0.0.0-20211107104306-e0b2ad06fe42 // indirect
 	golang.org/x/text v0.3.7 // indirect
+	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 

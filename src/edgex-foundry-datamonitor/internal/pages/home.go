@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -20,6 +22,20 @@ func parseURL(urlStr string) *url.URL {
 	}
 
 	return link
+}
+
+func stateWithData(data binding.DataMap) *widget.Form {
+	keys := data.Keys()
+	items := make([]*widget.FormItem, len(keys))
+	for i, k := range keys {
+		data, err := data.GetItem(k)
+		if err != nil {
+			items[i] = widget.NewFormItem(k, widget.NewLabel(err.Error()))
+		}
+		items[i] = widget.NewFormItem(k, createBoundItem(data))
+	}
+
+	return widget.NewForm(items...)
 }
 
 func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
@@ -36,8 +52,28 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 	var contentContainer *fyne.Container
 
 	connectedContent := func() *fyne.Container {
+
+		// stateStruct := struct {
+		// 	TotalNumberEvents   int
+		// 	TotalNumberReadings int
+		// }{}
+
+		// boundState := binding.BindStruct(&stateStruct)
+
+		// go func() {
+		// 	stateStruct.TotalNumberEvents = appManager.GetEventProcessor().TotalNumberEvents
+		// 	stateStruct.TotalNumberReadings = appManager.GetEventProcessor().TotalNumberReadings
+		// 	time.Sleep(500 * time.Millisecond)
+		// }()
+		// form := stateWithData(boundState)
+
+		// totalEvents := binding.BindInt(&appManager.GetEventProcessor().TotalNumberEvents)
+		// totalReadings := binding.BindInt(&appManager.GetEventProcessor().TotalNumberReadings)
+
 		return container.NewVBox(
 			container.NewCenter(
+				//form,
+				widget.NewSeparator(),
 				widget.NewButtonWithIcon("Disconnect", theme.LogoutIcon(), func() {
 					if err := appManager.Disconnect(); err != nil {
 						uerr := errors.New(fmt.Sprintf("Cannot disconnect\n%s", err))
@@ -109,9 +145,40 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 		contentContainer = disconnectedContent
 	}
 
+	a := binding.NewInt()
+	lbl := widget.NewLabelWithData(binding.IntToString(a))
+	go func() {
+		a.Set(time.Now().Nanosecond())
+		time.Sleep(500 * time.Millisecond)
+		lbl.Refresh()
+	}()
+
+	stateStruct := struct {
+		TotalNumberEvents           int
+		TotalNumberReadings         int
+		EventsPerSecondLastMinute   float64
+		ReadingsPerSecondLastMinute float64
+	}{}
+
+	boundState := binding.BindStruct(&stateStruct)
+
+	ep := appManager.GetEventProcessor()
+	form := stateWithData(boundState)
+	go func() {
+		for {
+			stateStruct.TotalNumberEvents = ep.TotalNumberEvents
+			stateStruct.TotalNumberReadings = ep.TotalNumberReadings
+			time.Sleep(500 * time.Millisecond)
+			boundState.Reload()
+			form.Refresh()
+		}
+	}()
+
 	return container.NewVBox(container.NewCenter(
 		container.NewHBox(
+			lbl,
 			contentContainer,
+			form,
 		),
 	))
 }

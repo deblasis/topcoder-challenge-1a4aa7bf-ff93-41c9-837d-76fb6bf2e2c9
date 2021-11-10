@@ -7,10 +7,12 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"github.com/deblasis/edgex-foundry-datamonitor/eventsprocessor"
 	"github.com/deblasis/edgex-foundry-datamonitor/internal/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/internal/pages"
 	"github.com/deblasis/edgex-foundry-datamonitor/internal/state"
 	"github.com/deblasis/edgex-foundry-datamonitor/messaging"
+	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
 
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
@@ -37,11 +39,33 @@ func main() {
 		//TODO: log this
 	}
 
-	AppState := state.New(client, cfg)
+	events := make(chan *dtos.Event)
+	ep := eventsprocessor.New(events)
+	go ep.Run()
+
+	messages, _ := client.Subscribe(config.DefaultEventsTopic)
+	go func() {
+		for {
+			select {
+			// case e := <-errors:
+			//TODO errors
+			case msgEnvelope := <-messages:
+				event, _ := messaging.ParseEvent(msgEnvelope.Payload)
+				//TODO errors
+				events <- event
+			}
+		}
+	}()
+
+	AppManager := state.NewAppManager(client, cfg, ep)
 
 	shouldConnect := a.Preferences().BoolWithFallback(config.PrefShouldConnectAtStartup, false)
 
 	if shouldConnect && cfg.RedisHost != nil && cfg.RedisPort != nil {
+		a.SendNotification(&fyne.Notification{
+			Title:   "Connecting...",
+			Content: fmt.Sprintf("Connecting to %v:%v", cfg.RedisHost, cfg.RedisPort),
+		})
 		if err = client.Connect(); err != nil {
 			uerr := errors.New(fmt.Sprintf("Cannot connect\n%s", err))
 			dialog.ShowError(uerr, topWindow)
@@ -54,11 +78,11 @@ func main() {
 	title := widget.NewLabel("Component name")
 	intro := widget.NewLabel("An introduction would probably go\nhere, as well as a")
 	intro.Wrapping = fyne.TextWrapWord
-	setPage := func(uid string, t pages.Page, state *state.AppManager) {
+	setPage := func(uid string, t pages.Page, appMgr *state.AppManager) {
 		if fyne.CurrentDevice().IsMobile() {
 			child := a.NewWindow(t.Title)
 			topWindow = child
-			child.SetContent(t.View(topWindow, state))
+			child.SetContent(t.View(topWindow, appMgr))
 			child.Show()
 			child.SetOnClosed(func() {
 				topWindow = w
@@ -69,20 +93,20 @@ func main() {
 		title.SetText(t.Title)
 		intro.SetText(t.Intro)
 		draw := func(cnt *fyne.Container) {
-			cnt.Objects = []fyne.CanvasObject{t.View(w, state)}
+			cnt.Objects = []fyne.CanvasObject{t.View(w, appMgr)}
 			cnt.Refresh()
 		}
 		draw(content)
 
-		state.SetCurrentContainer(content, draw)
+		appMgr.SetCurrentContainer(content, draw)
 	}
 
 	page := container.NewBorder(
 		container.NewVBox(title, widget.NewSeparator(), intro), nil, nil, nil, content)
 	if fyne.CurrentDevice().IsMobile() {
-		w.SetContent(makeNav(setPage, AppState))
+		w.SetContent(makeNav(setPage, AppManager))
 	} else {
-		split := container.NewHSplit(makeNav(setPage, AppState), page)
+		split := container.NewHSplit(makeNav(setPage, AppManager), page)
 		split.Offset = 0.2
 		w.SetContent(split)
 	}
