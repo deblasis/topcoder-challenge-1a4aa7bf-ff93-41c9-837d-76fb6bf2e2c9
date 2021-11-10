@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -32,10 +33,27 @@ func stateWithData(data binding.DataMap) *widget.Form {
 		if err != nil {
 			items[i] = widget.NewFormItem(k, widget.NewLabel(err.Error()))
 		}
-		items[i] = widget.NewFormItem(k, createBoundItem(data))
+		items[i] = widget.NewFormItem(k, createItem(data))
 	}
 
 	return widget.NewForm(items...)
+}
+
+func createItem(v binding.DataItem) fyne.CanvasObject {
+	switch val := v.(type) {
+	case binding.Bool:
+		return widget.NewCheckWithData("", val)
+	case binding.Float:
+		s := widget.NewSliderWithData(0, 1, val)
+		s.Step = 0.01
+		return s
+	case binding.Int:
+		return widget.NewEntryWithData(binding.IntToString(val))
+	case binding.String:
+		return widget.NewEntryWithData(val)
+	default:
+		return widget.NewLabel(fmt.Sprintf("%T", val))
+	}
 }
 
 func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
@@ -136,28 +154,13 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 		),
 	)
 
-	switch appManager.GetConnectionState() {
-	case state.Connected:
-		contentContainer = connectedContent
-	case state.Connecting:
-		contentContainer = connectingContent
-	case state.Disconnected:
-		contentContainer = disconnectedContent
-	}
-
-	a := binding.NewInt()
-	lbl := widget.NewLabelWithData(binding.IntToString(a))
-	go func() {
-		a.Set(time.Now().Nanosecond())
-		time.Sleep(500 * time.Millisecond)
-		lbl.Refresh()
-	}()
-
 	stateStruct := struct {
 		TotalNumberEvents           int
 		TotalNumberReadings         int
 		EventsPerSecondLastMinute   float64
 		ReadingsPerSecondLastMinute float64
+
+		LastDeviceNames string
 	}{}
 
 	boundState := binding.BindStruct(&stateStruct)
@@ -168,15 +171,33 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 		for {
 			stateStruct.TotalNumberEvents = ep.TotalNumberEvents
 			stateStruct.TotalNumberReadings = ep.TotalNumberReadings
+
+			stateStruct.EventsPerSecondLastMinute = ep.EventsPerSecondLastMinute
+			stateStruct.ReadingsPerSecondLastMinute = ep.ReadingsPerSecondLastMinute
+
+			stateStruct.LastDeviceNames = strings.Join(ep.LastDeviceNames.Get(), "|")
+
 			time.Sleep(500 * time.Millisecond)
 			boundState.Reload()
 			form.Refresh()
 		}
 	}()
 
+	form.Hide()
+	switch appManager.GetConnectionState() {
+	case state.Connected:
+		contentContainer = connectedContent
+		form.Show()
+	case state.Connecting:
+		contentContainer = connectingContent
+		form.Hide()
+	case state.Disconnected:
+		contentContainer = disconnectedContent
+		form.Hide()
+	}
+
 	return container.NewVBox(container.NewCenter(
 		container.NewHBox(
-			lbl,
 			contentContainer,
 			form,
 		),

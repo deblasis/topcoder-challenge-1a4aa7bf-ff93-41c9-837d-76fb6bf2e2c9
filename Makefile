@@ -29,7 +29,7 @@ build-builder:
 	cd ./src/fyne-cross-zq && make fyne-cross-zq
 
 darwin-compile:
-	@echo "\n❗❗❗❗"
+	@echo "\n❗❗❗❗ 🍎"
 	@echo "OSX/Darwin/Apple cross-compiling requires a darwin host and/or some manual steps along with the acceptance of Xcode license terms\n"
 	@echo "Please follow the link below:"
 	@echo https://github.com/fyne-io/fyne-cross#build-the-docker-image-for-osxdarwinapple-cross-compiling
@@ -39,13 +39,21 @@ darwin-compile:
 cross-compile: $(BUILD_TARGETS)
 	make darwin-compile
 
-refresh-win:
-	./$(FYNECROSS) windows -tags cgo_enabled=1 -app-id $(APPID) -arch=amd64 ./src/edgex-foundry-datamonitor/cmd/app
-	make run-win
+refresh-windows:
+	cd ./src/edgex-foundry-datamonitor && \
+	$(FYNECROSS) windows -app-id $(APPID) -arch=amd64 ./cmd/app
+	make run-windows
 
-run-win:
-	./src/edgex-foundry-datamonitor/fyne-cross/bin/windows-amd64/4c8811c4-6504-40a1-a9d0-ad25ee7c1af7.exe
+refresh-linux:
+	cd ./src/edgex-foundry-datamonitor && \
+	$(FYNECROSS) linux -app-id $(APPID) -arch=amd64 ./cmd/app
+	make run-linux
 
+run-windows:
+	./src/edgex-foundry-datamonitor/fyne-cross/bin/windows-amd64/edgex-foundry-datamonitor.exe
+
+run-linux:
+	./src/edgex-foundry-datamonitor/fyne-cross/bin/linux-amd64/edgex-foundry-datamonitor
 
 $(BUILD_TARGETS):
 	$(call compile_target,$(@))

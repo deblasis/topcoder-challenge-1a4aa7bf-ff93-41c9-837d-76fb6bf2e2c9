@@ -8,7 +8,6 @@ import (
 
 	"github.com/asecurityteam/rolling"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
-	"github.com/edgexfoundry/go-mod-core-contracts/v2/models"
 )
 
 type EventProcessor struct {
@@ -19,7 +18,7 @@ type EventProcessor struct {
 	lastEventChannel   chan dtos.Event
 	lastReadingChannel chan dtos.BaseReading
 
-	readingsChannel chan models.Reading
+	// readingsChannel chan models.Reading
 
 	TotalNumberEvents   int
 	TotalNumberReadings int

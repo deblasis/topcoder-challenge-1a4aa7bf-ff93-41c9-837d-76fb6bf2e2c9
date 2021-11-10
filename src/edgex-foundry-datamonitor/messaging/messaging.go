@@ -11,9 +11,13 @@ import (
 
 type Client struct {
 	sync.Mutex
-	edgeXClient  edgexM.MessageClient
+	edgeXClient edgexM.MessageClient
+	cfg         *config.Config
+
 	IsConnected  bool
 	IsConnecting bool
+
+	OnConnect func()
 }
 
 func NewClient(cfg *config.Config) (*Client, error) {
@@ -24,26 +28,12 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		cnf = cfg
 	}
 
-	messageBus, err := edgexM.NewMessageClient(types.MessageBusConfig{
-		SubscribeHost: types.HostInfo{
-			Host:     config.StringVal(cnf.RedisHost),
-			Port:     config.IntVal(cnf.RedisPort),
-			Protocol: edgexM.Redis,
-		},
-		Type: edgexM.Redis,
-	})
-
-	if err != nil {
-		return nil, err
-		//TODO log
-		//LoggingClient.Error("failed to create messaging client: " + err.Error())
-	}
-
 	c := &Client{
 		Mutex:        sync.Mutex{},
-		edgeXClient:  messageBus,
+		cfg:          cnf,
 		IsConnected:  false,
 		IsConnecting: false,
+		OnConnect:    func() {},
 	}
 
 	return c, nil
@@ -58,16 +48,30 @@ func (c *Client) Connect() error {
 		c.IsConnecting = false
 	}()
 
-	if c.edgeXClient == nil {
-		return errors.New("client not initialized") //TODO refactor
+	messageBus, err := edgexM.NewMessageClient(types.MessageBusConfig{
+		SubscribeHost: types.HostInfo{
+			Host:     config.StringVal(c.cfg.RedisHost),
+			Port:     config.IntVal(c.cfg.RedisPort),
+			Protocol: edgexM.Redis,
+		},
+		Type: edgexM.Redis,
+	})
+
+	if err != nil {
+		return err
+		//TODO log
+		//LoggingClient.Error("failed to create messaging client: " + err.Error())
 	}
 
-	err := c.edgeXClient.Connect()
+	c.edgeXClient = messageBus
+
+	err = c.edgeXClient.Connect()
 	if err != nil {
 		return err
 	}
 
 	c.IsConnected = true
+	c.OnConnect()
 	return nil
 }
 
@@ -81,8 +85,14 @@ func (c *Client) Disconnect() error {
 }
 
 func (c *Client) Subscribe(topic string) (chan types.MessageEnvelope, chan error) {
-	messages := make(chan types.MessageEnvelope)
+
 	errorChannel := make(chan error)
+	if c.edgeXClient == nil {
+		errorChannel <- errors.New("client not initialized") //TODO refactor
+		return nil, errorChannel
+	}
+
+	messages := make(chan types.MessageEnvelope)
 
 	err := c.edgeXClient.Subscribe([]types.TopicChannel{
 		{

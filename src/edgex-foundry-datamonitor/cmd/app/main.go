@@ -43,19 +43,21 @@ func main() {
 	ep := eventsprocessor.New(events)
 	go ep.Run()
 
-	messages, _ := client.Subscribe(config.DefaultEventsTopic)
-	go func() {
-		for {
-			select {
-			// case e := <-errors:
-			//TODO errors
-			case msgEnvelope := <-messages:
-				event, _ := messaging.ParseEvent(msgEnvelope.Payload)
+	client.OnConnect = func() {
+		messages, _ := client.Subscribe(config.DefaultEventsTopic)
+		go func() {
+			for {
+				select {
+				// case e := <-errors:
 				//TODO errors
-				events <- event
+				case msgEnvelope := <-messages:
+					event, _ := messaging.ParseEvent(msgEnvelope.Payload)
+					//TODO errors
+					events <- event
+				}
 			}
-		}
-	}()
+		}()
+	}
 
 	AppManager := state.NewAppManager(client, cfg, ep)
 

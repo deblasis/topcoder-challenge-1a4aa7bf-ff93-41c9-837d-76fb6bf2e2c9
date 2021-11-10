@@ -19,3 +19,13 @@ brew install zeromq
 
 ## IMPORTANT ZeroMq deprecation!
 https://github.com/edgexfoundry/go-mod-messaging/issues/73
+
+## WSL
+
+export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}'):0.0
+export LIBGL_ALWAYS_INDIRECT=0
+
+
+https://i.stack.imgur.com/4n4XH.png
+
+Then, start a new instance of VcxSrv with and unselect the Native opengl box on the Extra Settings page, and select the Disable access control box. VcxSrv Extra Settings
