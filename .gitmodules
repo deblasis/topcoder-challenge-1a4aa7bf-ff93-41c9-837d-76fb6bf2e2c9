@@ -1,0 +1,3 @@
+[submodule "go-mod-messaging"]
+	path = go-mod-messaging
+	url = git@github.com:deblasis/go-mod-messaging.git

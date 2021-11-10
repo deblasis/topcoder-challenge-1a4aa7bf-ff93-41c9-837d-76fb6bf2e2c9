@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "src/fyne-cross-zq"
+		},
+		{
+			"path": "go-mod-messaging"
+		},
+		{
+			"path": "src/edgex-foundry-datamonitor"
+		}
+	],
+	"remoteAuthority": "wsl+ubuntu",
+	"settings": {}
+}
