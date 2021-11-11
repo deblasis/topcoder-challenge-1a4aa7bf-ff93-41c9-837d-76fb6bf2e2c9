@@ -3,10 +3,11 @@ package config
 import "fyne.io/fyne/v2"
 
 const (
-	prefRedisHost = "_RedisHost"
-	prefRedisPort = "_RedisPort"
+	PrefRedisHost = "_RedisHost"
+	PrefRedisPort = "_RedisPort"
 
-	PrefShouldConnectAtStartup = "_ShouldConnectAtStartup"
+	PrefShouldConnectAtStartup        = "_ShouldConnectAtStartup"
+	PrefEventsTableSortOrderAscending = "_EventsTableSortOrderAscending"
 )
 
 const (
@@ -14,6 +15,9 @@ const (
 	RedisDefaultPort = 6379
 
 	DefaultEventsTopic = "edgex/events/device/#"
+
+	DefaultShouldConnectAtStartup        = false
+	DefaultEventsTableSortOrderAscending = false
 )
 
 type Config struct {
@@ -21,23 +25,30 @@ type Config struct {
 	RedisPort *int
 
 	EventsTopic string
+
+	ShouldConnectAtStartup        bool
+	EventsTableSortOrderAscending bool
 }
 
 func GetConfig() *Config {
 	a := fyne.CurrentApp()
 
 	return &Config{
-		RedisHost:   String(a.Preferences().StringWithFallback(prefRedisHost, RedisDefaultHost)),
-		RedisPort:   Int(a.Preferences().IntWithFallback(prefRedisPort, RedisDefaultPort)),
-		EventsTopic: DefaultEventsTopic,
+		RedisHost:                     String(a.Preferences().StringWithFallback(PrefRedisHost, RedisDefaultHost)),
+		RedisPort:                     Int(a.Preferences().IntWithFallback(PrefRedisPort, RedisDefaultPort)),
+		EventsTopic:                   DefaultEventsTopic,
+		ShouldConnectAtStartup:        a.Preferences().BoolWithFallback(PrefShouldConnectAtStartup, DefaultShouldConnectAtStartup),
+		EventsTableSortOrderAscending: a.Preferences().BoolWithFallback(PrefEventsTableSortOrderAscending, DefaultEventsTableSortOrderAscending),
 	}
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		RedisHost:   String(RedisDefaultHost),
-		RedisPort:   Int(RedisDefaultPort),
-		EventsTopic: DefaultEventsTopic,
+		RedisHost:                     String(RedisDefaultHost),
+		RedisPort:                     Int(RedisDefaultPort),
+		EventsTopic:                   DefaultEventsTopic,
+		ShouldConnectAtStartup:        DefaultShouldConnectAtStartup,
+		EventsTableSortOrderAscending: DefaultEventsTableSortOrderAscending,
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
@@ -61,10 +62,12 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 	// } else {
 	// 	logo.SetMinSize(fyne.NewSize(228, 167))
 	// }
+	a := fyne.CurrentApp()
+	var contentContainer *fyne.Container
 
 	redisHost, redisPort := appManager.GetRedisHostPort()
-
-	var contentContainer *fyne.Container
+	connectionState := appManager.GetConnectionState()
+	eventProcessor := appManager.GetEventProcessor()
 
 	connectedContent := container.NewVBox()
 
@@ -88,30 +91,14 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 		),
 	))
 
-	// stateStruct := struct {
-	// 	TotalNumberEvents           int
-	// 	TotalNumberReadings         int
-	// 	EventsPerSecondLastMinute   float64
-	// 	ReadingsPerSecondLastMinute float64
+	eventsTable := renderEventsTable(eventProcessor.LastEvents.Get(), false)
+	tableContainer := container.NewMax(eventsTable)
 
-	// 	// currently fyne doesn't support automatic comparison for slices
-	// 	// I might push that feature upstream, meanwhile I am using a string
-	// 	// to hold the bound data and then process it while rendering
-	// 	LastEvents string
-	// }{}
+	totalNumberEventsBinding := binding.BindInt(config.Int(eventProcessor.TotalNumberEvents))
+	totalNumberReadingsBinding := binding.BindInt(config.Int(eventProcessor.TotalNumberReadings))
 
-	//boundState := binding.BindStruct(&stateStruct)
-
-	ep := appManager.GetEventProcessor()
-
-	table := renderEventsTable(ep.LastEvents.Get(), false)
-	tableContainer := container.NewMax(table)
-
-	totalNumberEventsBinding := binding.BindInt(config.Int(ep.TotalNumberEvents))
-	totalNumberReadingsBinding := binding.BindInt(config.Int(ep.TotalNumberReadings))
-
-	eventsPerSecondLastMinute := binding.BindFloat(config.Float(ep.EventsPerSecondLastMinute))
-	readingsPerSecondLastMinute := binding.BindFloat(config.Float(ep.ReadingsPerSecondLastMinute))
+	eventsPerSecondLastMinute := binding.BindFloat(config.Float(eventProcessor.EventsPerSecondLastMinute))
+	readingsPerSecondLastMinute := binding.BindFloat(config.Float(eventProcessor.ReadingsPerSecondLastMinute))
 
 	dashboardStats := container.NewGridWithRows(2,
 		container.NewGridWithColumns(4,
@@ -135,11 +122,11 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 	dashboardStats.Hide()
 	tableContainer.Hide()
 
-	switch appManager.GetConnectionState() {
+	switch connectionState {
 	case state.Connected:
 		contentContainer = connectedContent
 		dashboardStats.Show()
-		tableContainer = container.NewMax(table)
+		tableContainer = container.NewMax(eventsTable)
 	case state.Connecting:
 		contentContainer = connectingContent
 		dashboardStats.Hide()
@@ -167,16 +154,16 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 				continue
 			}
 			//log.Printf("refreshing UI: events %v\n", ep.TotalNumberEvents)
-			totalNumberEventsBinding.Set(ep.TotalNumberEvents)
-			totalNumberReadingsBinding.Set(ep.TotalNumberReadings)
-			eventsPerSecondLastMinute.Set(ep.EventsPerSecondLastMinute)
-			readingsPerSecondLastMinute.Set(ep.ReadingsPerSecondLastMinute)
-			table = renderEventsTable(ep.LastEvents.Get(), false)
+			totalNumberEventsBinding.Set(eventProcessor.TotalNumberEvents)
+			totalNumberReadingsBinding.Set(eventProcessor.TotalNumberReadings)
+			eventsPerSecondLastMinute.Set(eventProcessor.EventsPerSecondLastMinute)
+			readingsPerSecondLastMinute.Set(eventProcessor.ReadingsPerSecondLastMinute)
+			eventsTable = renderEventsTable(eventProcessor.LastEvents.Get(), a.Preferences().BoolWithFallback(config.PrefEventsTableSortOrderAscending, config.DefaultEventsTableSortOrderAscending))
 
 			//dashboardStats.Refresh()
 			// home.Objects[0].(*fyne.Container).Objects[1] = table
 			if len(tableContainer.Objects) > 0 {
-				tableContainer.Objects[0] = table
+				tableContainer.Objects[0] = eventsTable
 			}
 			//home.Refresh()
 
@@ -187,10 +174,12 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 
 }
 
-func renderEventsTable(events []*dtos.Event, sortAsc bool) *widget.Table {
+func renderEventsTable(events []*dtos.Event, sortAsc bool) fyne.CanvasObject {
 
 	// the slice is fifo, we reverse it so that the first element is the most recent
-	evts := events
+	evts := make([]*dtos.Event, len(events))
+	copy(evts, events)
+
 	if !sortAsc {
 		for i, j := 0, len(evts)-1; i < j; i, j = i+1, j-1 {
 			evts[i], evts[j] = evts[j], evts[i]
@@ -206,14 +195,6 @@ func renderEventsTable(events []*dtos.Event, sortAsc bool) *widget.Table {
 
 		event := evts[row]
 		switch col {
-		// case 0:
-
-		// 	id := row + 1
-		// 	if !sortAsc {
-		// 		id = 5 - id + 1
-		// 	}
-
-		// 	label.SetText(fmt.Sprintf("%d", id))
 		case 0:
 			label.SetText(event.DeviceName)
 		case 1:
@@ -238,8 +219,10 @@ func renderEventsTable(events []*dtos.Event, sortAsc bool) *widget.Table {
 				// 	label.SetText("ID")
 				case 0:
 					label.SetText("Device Name")
+					label.TextStyle = fyne.TextStyle{Bold: true}
 				case 1:
 					label.SetText("Origin Timestamp")
+					label.TextStyle = fyne.TextStyle{Bold: true}
 				default:
 					label.SetText("")
 				}
@@ -253,6 +236,19 @@ func renderEventsTable(events []*dtos.Event, sortAsc bool) *widget.Table {
 	t.SetColumnWidth(0, 350)
 	t.SetColumnWidth(1, 350)
 
-	return t
+	sortorder := "ascendingly"
+	if !sortAsc {
+		sortorder = "descendingly"
+	}
+	return container.NewBorder(
+		container.NewVBox(layout.NewSpacer(), container.NewHBox(
+			widget.NewLabelWithStyle("Last 5 events", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithStyle(fmt.Sprintf("sorted %v", sortorder), fyne.TextAlignTrailing, fyne.TextStyle{Italic: true}),
+		)),
+		nil,
+		nil,
+		nil,
+		t,
+	)
 
 }
