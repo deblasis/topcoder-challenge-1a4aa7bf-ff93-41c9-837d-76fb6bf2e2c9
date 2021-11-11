@@ -46,7 +46,8 @@ func main() {
 	topWindow = w
 	w.SetMaster()
 
-	cfg := config.GetConfig()
+	cfg := config.GetConfig(fyne.CurrentApp())
+
 	client, err := messaging.NewClient(cfg)
 	if err != nil {
 		uerr := errors.New("Error while initializing client")

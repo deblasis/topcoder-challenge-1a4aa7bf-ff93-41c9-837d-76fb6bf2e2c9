@@ -37,12 +37,6 @@ type Client struct {
 
 func NewClient(cfg *config.Config) (*Client, error) {
 
-	if cfg == nil {
-		cfg = &config.Config{
-			EventsTopic: config.DefaultEventsTopic,
-		}
-	}
-
 	c := &Client{
 		Mutex:        sync.Mutex{},
 		cfg:          cfg,

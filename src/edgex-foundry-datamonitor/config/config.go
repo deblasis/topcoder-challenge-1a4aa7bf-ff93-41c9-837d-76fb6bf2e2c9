@@ -21,11 +21,10 @@ type Config struct {
 	EventsTopic string
 }
 
-func GetConfig() *Config {
-	a := fyne.CurrentApp()
+func GetConfig(app fyne.App) *Config {
 
 	return &Config{
-		app:         a,
+		app:         app,
 		EventsTopic: DefaultEventsTopic,
 	}
 }

@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-
-//g o : b u i l d   i n t e g r ation
-// b u i ld   i  ntegration
+//go:build integration
+// +build integration
 
 package messaging_test
 
@@ -22,11 +21,14 @@ import (
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2"
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/messaging"
+	"github.com/deblasis/edgex-foundry-datamonitor/mocks"
 	"github.com/deblasis/edgex-foundry-datamonitor/services"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
 	"github.com/edgexfoundry/go-mod-messaging/v2/pkg/types"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClient_Subscribe(t *testing.T) {
@@ -50,45 +52,69 @@ func TestClient_Subscribe(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newDefaultClient()
 
-			c.Connect()
-			messages, errors := c.Subscribe(tt.args.topic)
+			mockApp := new(mocks.MockApp)
+			mockPreferences := new(mocks.MockPreferences)
+
+			mockPreferences.On("StringWithFallback", "_RedisHost", "localhost").Return("localhost")
+			mockPreferences.On("IntWithFallback", "_RedisPort", 6379).Return(6379)
+
+			mockApp.On("Preferences").Return(mockPreferences)
+
+			c := newDefaultClient(mockApp)
 
 			events := make(chan *dtos.Event)
+
+			var (
+				errs     = make(chan error)
+				messages = make(chan types.MessageEnvelope)
+			)
+
+			c.OnConnect = func() bool {
+				messages, errs = c.Subscribe(config.DefaultEventsTopic)
+
+				return true
+			}
+
+			err := c.Connect()
+			require.Nil(t, err)
 
 			ep := services.NewEventProcessor(events)
 			go ep.Run()
 
 			gracePeriod := time.NewTimer(10 * time.Second)
-
+		LOOP:
 			for {
 				select {
-				//return
 
-				case e := <-errors:
+				case e := <-errs:
 					t.Fatalf("Client.Subscribe() got error = %v", e)
 
 				case msgEnvelope := <-messages:
-					//gracePeriod.Stop()
+					gracePeriod.Stop()
 					event, err := messaging.ParseEvent(msgEnvelope.Payload)
 					events <- event
 
 					if err != nil {
 						t.Fatalf("Client.Subscribe() got error while parsing Event = %v", err)
 					}
+
 					t.Log(event)
 					t.Logf("Client.Subscribe() got msgEnvelope = %v", msgEnvelope)
+					break LOOP
 				case <-gracePeriod.C:
-					//t.Fatal("Client.Subscribe() couldn't get any message within the gracePeriod")
 					ep.Deactivate()
+					t.Fatal("Client.Subscribe() no messages received within the gracePeriod")
 				}
 			}
 		})
 	}
 }
 
-func newDefaultClient() *messaging.Client {
-	c, _ := messaging.NewClient(nil)
+func newDefaultClient(app fyne.App) *messaging.Client {
+
+	cfg := config.GetConfig(app)
+
+	c, _ := messaging.NewClient(cfg)
 	return c
 }
