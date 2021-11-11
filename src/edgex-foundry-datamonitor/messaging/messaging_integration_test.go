@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+
 //g o : b u i l d   i n t e g r ation
 // b u i ld   i  ntegration
 
-package messaging
+package messaging_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
-	"github.com/deblasis/edgex-foundry-datamonitor/eventsprocessor"
+	"github.com/deblasis/edgex-foundry-datamonitor/messaging"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
 	"github.com/edgexfoundry/go-mod-messaging/v2/pkg/types"
 )
@@ -55,7 +57,7 @@ func TestClient_Subscribe(t *testing.T) {
 
 			events := make(chan *dtos.Event)
 
-			ep := eventsprocessor.New(events)
+			ep := services.NewEventProcessor(events)
 			go ep.Run()
 
 			gracePeriod := time.NewTimer(10 * time.Second)
@@ -69,7 +71,7 @@ func TestClient_Subscribe(t *testing.T) {
 
 				case msgEnvelope := <-messages:
 					//gracePeriod.Stop()
-					event, err := ParseEvent(msgEnvelope.Payload)
+					event, err := messaging.ParseEvent(msgEnvelope.Payload)
 					events <- event
 
 					if err != nil {
@@ -86,7 +88,7 @@ func TestClient_Subscribe(t *testing.T) {
 	}
 }
 
-func newDefaultClient() *Client {
-	c, _ := NewClient(nil)
+func newDefaultClient() *messaging.Client {
+	c, _ := messaging.NewClient(nil)
 	return c
 }

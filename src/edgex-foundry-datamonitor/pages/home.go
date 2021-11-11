@@ -17,6 +17,7 @@ package pages
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -62,7 +63,7 @@ func homeScreen(w fyne.Window, appManager *services.AppManager) fyne.CanvasObjec
 					if err := appManager.Connect(); err != nil {
 						uerr := errors.New(fmt.Sprintf("Cannot connect\n%s", err))
 						dialog.ShowError(uerr, w)
-						//TODO: log this
+						log.Printf("cannot connect: %v", err)
 					}
 					appManager.Refresh()
 				}),

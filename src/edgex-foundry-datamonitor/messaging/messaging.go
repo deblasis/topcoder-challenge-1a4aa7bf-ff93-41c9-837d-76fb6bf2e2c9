@@ -37,6 +37,12 @@ type Client struct {
 
 func NewClient(cfg *config.Config) (*Client, error) {
 
+	if cfg == nil {
+		cfg = &config.Config{
+			EventsTopic: config.DefaultEventsTopic,
+		}
+	}
+
 	c := &Client{
 		Mutex:        sync.Mutex{},
 		cfg:          cfg,
@@ -101,7 +107,7 @@ func (c *Client) Subscribe(topic string) (chan types.MessageEnvelope, chan error
 
 	errorChannel := make(chan error)
 	if c.edgeXClient == nil {
-		errorChannel <- errors.New("client not initialized") //TODO refactor
+		errorChannel <- errors.New("client not initialized")
 		return nil, errorChannel
 	}
 
@@ -117,12 +123,6 @@ func (c *Client) Subscribe(topic string) (chan types.MessageEnvelope, chan error
 	if err != nil {
 		errorChannel <- err
 	}
-
-	// events := make(chan *dtos.Event)
-	// msgEnvelope := <-messages
-	// //gracePeriod.Stop()
-	// event, err := parseEvent(msgEnvelope.Payload)
-	// events <- event
 
 	return messages, errorChannel
 }
