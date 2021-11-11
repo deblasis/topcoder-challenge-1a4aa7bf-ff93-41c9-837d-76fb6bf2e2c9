@@ -34,22 +34,16 @@ import (
 )
 
 func homeScreen(w fyne.Window, appManager *services.AppManager) fyne.CanvasObject {
-	// logo := canvas.NewImageFromResource(data.FyneScene)
-	// logo.FillMode = canvas.ImageFillContain
-	// if fyne.CurrentDevice().IsMobile() {
-	// 	logo.SetMinSize(fyne.NewSize(171, 125))
-	// } else {
-	// 	logo.SetMinSize(fyne.NewSize(228, 167))
-	// }
 	a := fyne.CurrentApp()
 	var contentContainer *fyne.Container
 
 	logo := canvas.NewImageFromResource(bundled.ResourceCompanyLogoLgPng)
-	// image := canvas.NewImageFromURI(uri)
-	// image := canvas.NewImageFromImage(src)
-	// image := canvas.NewImageFromReader(reader, name)
-	// image := canvas.NewImageFromFile(fileName)
-	logo.FillMode = canvas.ImageFillOriginal
+	logo.FillMode = canvas.ImageFillStretch
+	if fyne.CurrentDevice().IsMobile() {
+		logo.SetMinSize(fyne.NewSize(171, 57))
+	} else {
+		logo.SetMinSize(fyne.NewSize(500, 165))
+	}
 
 	redisHost, redisPort := appManager.GetRedisHostPort()
 	connectionState := appManager.GetConnectionState()
