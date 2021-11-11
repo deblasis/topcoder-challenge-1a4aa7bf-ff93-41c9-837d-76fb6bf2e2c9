@@ -20,12 +20,14 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/deblasis/edgex-foundry-datamonitor/bundled"
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/services"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
@@ -42,6 +44,13 @@ func homeScreen(w fyne.Window, appManager *services.AppManager) fyne.CanvasObjec
 	a := fyne.CurrentApp()
 	var contentContainer *fyne.Container
 
+	logo := canvas.NewImageFromResource(bundled.ResourceCompanyLogoLgPng)
+	// image := canvas.NewImageFromURI(uri)
+	// image := canvas.NewImageFromImage(src)
+	// image := canvas.NewImageFromReader(reader, name)
+	// image := canvas.NewImageFromFile(fileName)
+	logo.FillMode = canvas.ImageFillOriginal
+
 	redisHost, redisPort := appManager.GetRedisHostPort()
 	connectionState := appManager.GetConnectionState()
 	eventProcessor := appManager.GetEventProcessor()
@@ -51,6 +60,7 @@ func homeScreen(w fyne.Window, appManager *services.AppManager) fyne.CanvasObjec
 	))
 
 	disconnectedContent := container.NewCenter(container.NewVBox(
+		logo,
 		widget.NewCard("You are currently disconnected from EdgeX Foundry",
 			fmt.Sprintf("Would you like to connect to %v:%d?", redisHost, redisPort),
 			container.NewCenter(

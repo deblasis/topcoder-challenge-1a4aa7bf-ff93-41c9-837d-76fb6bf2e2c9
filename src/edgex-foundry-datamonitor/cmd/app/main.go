@@ -22,6 +22,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"github.com/deblasis/edgex-foundry-datamonitor/bundled"
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/messaging"
 	"github.com/deblasis/edgex-foundry-datamonitor/pages"
@@ -39,7 +40,7 @@ var topWindow fyne.Window
 
 func main() {
 	a := app.NewWithID("edgex-datamonitor")
-	a.SetIcon(theme.FyneLogo()) //TODO change
+	a.SetIcon(bundled.ResourceBgxPng)
 	logLifecycle(a)
 	w := a.NewWindow("EdgeX Data Monitor")
 	topWindow = w
