@@ -346,30 +346,18 @@ services:
     user: root:root
     volumes:
     - /var/run/docker.sock:/var/run/docker.sock:z
-
-
-
-  device-random:
-    container_name: device-random
-    build:
-      dockerfile: ./Dockerfile
-      context: ./src/device-random
-    depends_on:
-    - command
-    - consul
-    environment:
-      CLIENTS_CORE_COMMAND_HOST: edgex-core-command
-      CLIENTS_CORE_DATA_HOST: edgex-core-data
-      CLIENTS_CORE_METADATA_HOST: edgex-core-metadata
-      CLIENTS_SUPPORT_NOTIFICATIONS_HOST: edgex-support-notifications
-      CLIENTS_SUPPORT_SCHEDULER_HOST: edgex-support-scheduler
-      DATABASES_PRIMARY_HOST: edgex-redis
-      EDGEX_SECURITY_SECRET_STORE: "false"
-      MESSAGEQUEUE_HOST: edgex-redis
-      REGISTRY_HOST: edgex-core-consul
-      SERVICE_HOST: edgex-device-rest
-
-
+  ui:
+    container_name: edgex-ui-go
+    hostname: edgex-ui-go
+    image: edgexfoundry/edgex-ui:2.0.0
+    networks:
+      edgex-network: {}
+    ports:
+    - 127.0.0.1:4000:4000/tcp
+    read_only: true
+    security_opt:
+    - no-new-privileges:true
+    user: 2002:2001
 version: '3.7'
 volumes:
   consul-config: {}

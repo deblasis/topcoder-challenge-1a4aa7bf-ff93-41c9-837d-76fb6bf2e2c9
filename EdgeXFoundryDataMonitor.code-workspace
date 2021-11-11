@@ -4,9 +4,6 @@
 			"path": "."
 		},
 		{
-			"path": "src/fyne-cross-zq"
-		},
-		{
 			"path": "go-mod-messaging"
 		},
 		{
