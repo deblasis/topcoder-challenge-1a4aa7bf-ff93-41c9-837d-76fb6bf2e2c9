@@ -6,24 +6,15 @@ APPID=edgex-datamonitor
 
 FYNECROSS=fyne-cross
 
-# BIN_NAME=edgex-datamonitor
-
-
-#	../../$(FYNECROSS) $(1) -app-id $(APPID) -arch=amd64  -env="CGO_CFLAGS=-I/usr/include -I/usr/include/x86_64-linux-gnu" -env="CGO_LDFLAGS=-L/usr/lib/x86_64-linux-gnu" -debug=true ./cmd/app
-
 define compile_target
 	cd ./src/edgex-foundry-datamonitor && \
 	$(FYNECROSS) $(1) -app-id $(APPID) -arch=amd64 ./cmd/app
-
-
 endef
 
 PHONY: install-deps
 install-deps:
 	go install github.com/fyne-io/fyne-cross@latest
-
-
-
+	go install fyne.io/fyne/v2/cmd/fyne@latest
 
 build-builder:
 	cd ./src/fyne-cross-zq && make fyne-cross-zq
