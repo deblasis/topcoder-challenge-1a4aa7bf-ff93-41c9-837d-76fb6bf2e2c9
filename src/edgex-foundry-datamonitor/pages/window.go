@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/state"
 )
 
 func windowScreen(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {

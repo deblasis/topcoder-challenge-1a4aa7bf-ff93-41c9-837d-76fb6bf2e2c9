@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/state"
 )
 
 func rgbGradient(x, y, w, h int) color.Color {

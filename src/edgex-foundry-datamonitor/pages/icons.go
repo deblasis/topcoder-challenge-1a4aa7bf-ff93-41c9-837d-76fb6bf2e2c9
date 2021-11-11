@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/state"
 )
 
 type iconInfo struct {

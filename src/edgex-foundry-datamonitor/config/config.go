@@ -68,3 +68,17 @@ func IntVal(i *int) int {
 	}
 	return *i
 }
+
+// Float returns a pointer to the given float64.
+func Float(f float64) *float64 {
+	return &f
+}
+
+// FloatVal returns the value of the float64 at the pointer, or 0 if the pointer is
+// nil.
+func FloatVal(f *float64) float64 {
+	if f == nil {
+		return 0
+	}
+	return *f
+}

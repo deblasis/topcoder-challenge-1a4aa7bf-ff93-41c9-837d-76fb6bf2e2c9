@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/state"
 )
 
 func scaleString(c fyne.Canvas) string {

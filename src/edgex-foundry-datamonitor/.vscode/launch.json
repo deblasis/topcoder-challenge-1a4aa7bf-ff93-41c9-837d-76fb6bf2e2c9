@@ -1,0 +1,19 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Package",
+            "type": "go",
+            "request": "launch",
+            "env": {
+                "DISPLAY": "172.17.240.1:0.0",
+                "LIBGL_ALWAYS_INDIRECT":"0"
+            },
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/app/main.go"
+        }
+    ]
+}

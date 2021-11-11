@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/state"
 )
 
 // containerScreen loads a tab panel for containers

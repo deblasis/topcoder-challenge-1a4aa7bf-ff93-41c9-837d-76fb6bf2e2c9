@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/config"
+	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	edgexM "github.com/edgexfoundry/go-mod-messaging/v2/messaging"
 	"github.com/edgexfoundry/go-mod-messaging/v2/pkg/types"
 )

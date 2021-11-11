@@ -4,8 +4,8 @@ import (
 	"sync"
 
 	"fyne.io/fyne/v2"
+	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/eventsprocessor"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/messaging"
 )
 
@@ -14,7 +14,10 @@ type AppManager struct {
 	client           *messaging.Client
 	config           *config.Config
 	currentContainer *fyne.Container
-	ep               *eventsprocessor.EventProcessor
+
+	navBar *fyne.Container
+
+	ep *eventsprocessor.EventProcessor
 
 	drawFn func(*fyne.Container)
 }
@@ -37,6 +40,35 @@ func (a *AppManager) SetCurrentContainer(container *fyne.Container, drawFn func(
 	defer a.Unlock()
 	a.currentContainer = container
 	a.drawFn = drawFn
+}
+
+func (a *AppManager) SetNav(nav *fyne.Container) {
+	a.Lock()
+	defer a.Unlock()
+	a.navBar = nav
+}
+
+func (a *AppManager) Refresh() {
+	refreshNavBar := func() {
+		if a.navBar == nil {
+			return
+		}
+		if a.GetConnectionState() == Connected {
+			a.navBar.Objects[1].(*fyne.Container).Objects[0].Show()
+		} else {
+			a.navBar.Objects[1].(*fyne.Container).Objects[0].Hide()
+		}
+		a.navBar.Refresh()
+	}
+	refreshContent := func() {
+		if a.drawFn != nil && a.currentContainer != nil {
+			a.drawFn(a.currentContainer)
+		}
+	}
+
+	refreshNavBar()
+	refreshContent()
+
 }
 
 func (a *AppManager) GetCurrentContainer() (*fyne.Container, func(*fyne.Container)) {

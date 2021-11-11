@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/eventsprocessor"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/config"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
 	"github.com/edgexfoundry/go-mod-messaging/v2/pkg/types"
 )

@@ -7,11 +7,11 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/eventsprocessor"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/config"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/pages"
-	"github.com/deblasis/edgex-foundry-datamonitor/internal/state"
 	"github.com/deblasis/edgex-foundry-datamonitor/messaging"
+	"github.com/deblasis/edgex-foundry-datamonitor/pages"
+	"github.com/deblasis/edgex-foundry-datamonitor/state"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
 
 	"fyne.io/fyne/v2/container"
@@ -36,7 +36,7 @@ func main() {
 	if err != nil {
 		uerr := errors.New("Error while initializing client")
 		dialog.ShowError(uerr, topWindow)
-		//TODO: log this
+		log.Println(err)
 	}
 
 	events := make(chan *dtos.Event)
@@ -71,7 +71,7 @@ func main() {
 		if err = client.Connect(); err != nil {
 			uerr := errors.New(fmt.Sprintf("Cannot connect\n%s", err))
 			dialog.ShowError(uerr, topWindow)
-			//TODO: log this
+			log.Println(err)
 		}
 
 	}
@@ -103,12 +103,15 @@ func main() {
 		appMgr.SetCurrentContainer(content, draw)
 	}
 
-	page := container.NewBorder(
-		container.NewVBox(title, widget.NewSeparator(), intro), nil, nil, nil, content)
+	page := container.NewBorder(container.NewVBox(title, widget.NewSeparator(), intro), nil, nil, nil, content)
+
+	navBar := makeNav(setPage, AppManager)
+	AppManager.SetNav(navBar.(*fyne.Container))
+
 	if fyne.CurrentDevice().IsMobile() {
-		w.SetContent(makeNav(setPage, AppManager))
+		w.SetContent(navBar)
 	} else {
-		split := container.NewHSplit(makeNav(setPage, AppManager), page)
+		split := container.NewHSplit(navBar, page)
 		split.Offset = 0.2
 		w.SetContent(split)
 	}
@@ -131,7 +134,7 @@ func logLifecycle(a fyne.App) {
 	})
 }
 
-func makeNav(setPage func(_ string, page pages.Page, _ *state.AppManager), state *state.AppManager) fyne.CanvasObject {
+func makeNav(setPage func(_ string, page pages.Page, _ *state.AppManager), appMgr *state.AppManager) fyne.CanvasObject {
 	a := fyne.CurrentApp()
 
 	tree := &widget.Tree{
@@ -157,7 +160,7 @@ func makeNav(setPage func(_ string, page pages.Page, _ *state.AppManager), state
 		OnSelected: func(uid string) {
 			if t, ok := pages.Pages[uid]; ok {
 				//a.Preferences().SetString(preferenceCurrentTutorial, uid)
-				setPage(uid, t, state)
+				setPage(uid, t, appMgr)
 			}
 		},
 	}
@@ -174,11 +177,22 @@ func makeNav(setPage func(_ string, page pages.Page, _ *state.AppManager), state
 		}),
 	)
 
-	return container.NewBorder(nil, themes, nil, nil, tree)
-}
+	disconnectBtn := widget.NewButtonWithIcon("Disconnect", theme.LogoutIcon(), func() {
+		appMgr.Disconnect()
+		appMgr.Refresh()
+	})
 
-func shortcutFocused(s fyne.Shortcut, w fyne.Window) {
-	if focused, ok := w.Canvas().Focused().(fyne.Shortcutable); ok {
-		focused.TypedShortcut(s)
+	switch appMgr.GetConnectionState() {
+	case state.Connected:
+		disconnectBtn.Show()
+	default:
+		disconnectBtn.Hide()
 	}
+
+	buttons := container.NewVBox(
+		disconnectBtn,
+		themes,
+	)
+
+	return container.NewBorder(nil, buttons, nil, nil, tree)
 }

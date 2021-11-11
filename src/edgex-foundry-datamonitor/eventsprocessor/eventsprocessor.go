@@ -1,6 +1,7 @@
 package eventsprocessor
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"sync"
@@ -18,16 +19,13 @@ type EventProcessor struct {
 	lastEventChannel   chan dtos.Event
 	lastReadingChannel chan dtos.BaseReading
 
-	// readingsChannel chan models.Reading
-
 	TotalNumberEvents   int
 	TotalNumberReadings int
 
 	EventsPerSecondLastMinute   float64
 	ReadingsPerSecondLastMinute float64
 
-	LastDeviceNames      lastFiveStrings
-	LastOriginTimestamps lastFiveInt
+	LastEvents shortMemoryEventsSlicer
 
 	sync.RWMutex
 }
@@ -40,13 +38,7 @@ func New(eventsChannel chan *dtos.Event) *EventProcessor {
 
 		lastEventChannel:   make(chan dtos.Event, 1),
 		lastReadingChannel: make(chan dtos.BaseReading, 1),
-
-		LastDeviceNames: lastFiveStrings{
-			arr: make([]string, 0),
-		},
-		LastOriginTimestamps: lastFiveInt{
-			arr: make([]int64, 0),
-		},
+		LastEvents:         newTopNEventSlicer(5),
 	}
 }
 
@@ -74,13 +66,11 @@ func (ep *EventProcessor) processEvent(event *dtos.Event) {
 	ep.TotalNumberEvents++
 	ep.TotalNumberReadings += len(event.Readings)
 
-	ep.LastDeviceNames.Add(event.DeviceName)
-	ep.LastOriginTimestamps.Add(event.Origin)
+	ep.LastEvents.Add(event)
 
 	for _, reading := range event.Readings {
 		ep.lastReadingChannel <- reading
 	}
-
 }
 
 func (ep *EventProcessor) Run() {
@@ -157,35 +147,37 @@ const (
 	Running
 )
 
-//TODO refactor
-type lastFiveStrings struct {
-	arr []string
+type topNEvents struct {
+	n      int
+	events []*dtos.Event
 }
 
-func (l *lastFiveStrings) Add(a string) {
-	if len(l.arr) == 5 {
-		l.arr = l.arr[1:]
+func newTopNEventSlicer(n int) *topNEvents {
+	return &topNEvents{
+		n:      n,
+		events: []*dtos.Event{},
+	}
+}
+
+func (t *topNEvents) Add(e *dtos.Event) {
+	if len(t.events) == t.n {
+		t.events = t.events[1:]
 	}
 
-	l.arr = append(l.arr, a)
+	t.events = append(t.events, e)
 }
 
-func (l *lastFiveStrings) Get() []string {
-	return l.arr
+func (l *topNEvents) Get() []*dtos.Event {
+	return l.events
 }
 
-type lastFiveInt struct {
-	arr []int64
+func (l *topNEvents) GetJson() string {
+	j, _ := json.Marshal(l.events)
+	return string(j)
 }
 
-func (l *lastFiveInt) Add(a int64) {
-	if len(l.arr) == 5 {
-		l.arr = l.arr[1:]
-	}
-
-	l.arr = append(l.arr, a)
-}
-
-func (l *lastFiveInt) Get() []int64 {
-	return l.arr
+type shortMemoryEventsSlicer interface {
+	Add(e *dtos.Event)
+	Get() []*dtos.Event
+	GetJson() string
 }
