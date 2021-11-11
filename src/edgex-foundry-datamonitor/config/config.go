@@ -2,54 +2,34 @@ package config
 
 import "fyne.io/fyne/v2"
 
-const (
-	PrefRedisHost = "_RedisHost"
-	PrefRedisPort = "_RedisPort"
-
-	PrefShouldConnectAtStartup        = "_ShouldConnectAtStartup"
-	PrefEventsTableSortOrderAscending = "_EventsTableSortOrderAscending"
-)
-
-const (
-	RedisDefaultHost = "localhost"
-	RedisDefaultPort = 6379
-
-	DefaultEventsTopic = "edgex/events/device/#"
-
-	DefaultShouldConnectAtStartup        = false
-	DefaultEventsTableSortOrderAscending = false
-)
-
 type Config struct {
-	RedisHost *string
-	RedisPort *int
-
+	app         fyne.App
 	EventsTopic string
-
-	ShouldConnectAtStartup        bool
-	EventsTableSortOrderAscending bool
 }
 
 func GetConfig() *Config {
 	a := fyne.CurrentApp()
 
 	return &Config{
-		RedisHost:                     String(a.Preferences().StringWithFallback(PrefRedisHost, RedisDefaultHost)),
-		RedisPort:                     Int(a.Preferences().IntWithFallback(PrefRedisPort, RedisDefaultPort)),
-		EventsTopic:                   DefaultEventsTopic,
-		ShouldConnectAtStartup:        a.Preferences().BoolWithFallback(PrefShouldConnectAtStartup, DefaultShouldConnectAtStartup),
-		EventsTableSortOrderAscending: a.Preferences().BoolWithFallback(PrefEventsTableSortOrderAscending, DefaultEventsTableSortOrderAscending),
+		app:         a,
+		EventsTopic: DefaultEventsTopic,
 	}
 }
 
-func DefaultConfig() *Config {
-	return &Config{
-		RedisHost:                     String(RedisDefaultHost),
-		RedisPort:                     Int(RedisDefaultPort),
-		EventsTopic:                   DefaultEventsTopic,
-		ShouldConnectAtStartup:        DefaultShouldConnectAtStartup,
-		EventsTableSortOrderAscending: DefaultEventsTableSortOrderAscending,
-	}
+func (c *Config) GetRedisHost() string {
+	return c.app.Preferences().StringWithFallback(PrefRedisHost, RedisDefaultHost)
+}
+
+func (c *Config) GetRedisPort() int {
+	return c.app.Preferences().IntWithFallback(PrefRedisPort, RedisDefaultPort)
+}
+
+func (c *Config) GetShouldConnectAtStartup() bool {
+	return c.app.Preferences().BoolWithFallback(PrefShouldConnectAtStartup, DefaultShouldConnectAtStartup)
+}
+
+func (c *Config) GetEventsTableSortOrderAscending() bool {
+	return c.app.Preferences().BoolWithFallback(PrefEventsTableSortOrderAscending, DefaultEventsTableSortOrderAscending)
 }
 
 // String returns a pointer to the given string.

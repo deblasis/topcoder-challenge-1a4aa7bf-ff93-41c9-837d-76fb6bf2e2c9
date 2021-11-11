@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
 type iconInfo struct {
@@ -36,7 +36,7 @@ func (b *browser) setIcon(index int) {
 }
 
 // iconScreen loads a panel that shows the various icons available in Fyne
-func iconScreen(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func iconScreen(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	b := &browser{}
 	b.icons = loadIcons()
 

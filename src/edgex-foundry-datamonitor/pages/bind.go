@@ -7,10 +7,10 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
-func bindingScreen(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func bindingScreen(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	f := 0.2
 	data := binding.BindFloat(&f)
 	label := widget.NewLabelWithData(binding.FloatToStringWithFormat(data, "Float value: %0.2f"))

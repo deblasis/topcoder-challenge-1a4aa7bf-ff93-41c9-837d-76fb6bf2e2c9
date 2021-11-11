@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"errors"
+	"log"
 	"sync"
 
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
@@ -17,23 +18,17 @@ type Client struct {
 	IsConnected  bool
 	IsConnecting bool
 
-	OnConnect func()
+	OnConnect func() bool
 }
 
 func NewClient(cfg *config.Config) (*Client, error) {
 
-	cnf := config.DefaultConfig()
-
-	if cfg != nil {
-		cnf = cfg
-	}
-
 	c := &Client{
 		Mutex:        sync.Mutex{},
-		cfg:          cnf,
+		cfg:          cfg,
 		IsConnected:  false,
 		IsConnecting: false,
-		OnConnect:    func() {},
+		OnConnect:    func() bool { return true },
 	}
 
 	return c, nil
@@ -42,6 +37,9 @@ func NewClient(cfg *config.Config) (*Client, error) {
 func (c *Client) Connect() error {
 	c.Lock()
 	defer c.Unlock()
+	c.IsConnected = false
+
+	log.Printf("connecting to %v:%v\n", c.cfg.GetRedisHost(), c.cfg.GetRedisPort())
 
 	c.IsConnecting = true
 	defer func() {
@@ -50,28 +48,30 @@ func (c *Client) Connect() error {
 
 	messageBus, err := edgexM.NewMessageClient(types.MessageBusConfig{
 		SubscribeHost: types.HostInfo{
-			Host:     config.StringVal(c.cfg.RedisHost),
-			Port:     config.IntVal(c.cfg.RedisPort),
+			Host:     c.cfg.GetRedisHost(),
+			Port:     c.cfg.GetRedisPort(),
 			Protocol: edgexM.Redis,
 		},
 		Type: edgexM.Redis,
 	})
 
 	if err != nil {
+		log.Println(err)
 		return err
-		//TODO log
-		//LoggingClient.Error("failed to create messaging client: " + err.Error())
 	}
 
 	c.edgeXClient = messageBus
 
 	err = c.edgeXClient.Connect()
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
-	c.IsConnected = true
-	c.OnConnect()
+	// edgex doesn't return error on connect... but only on Suscribe / Publish
+	// that's why we have to do something like this, which is not ideal
+	c.IsConnected = c.OnConnect()
+
 	return nil
 }
 
@@ -80,7 +80,6 @@ func (c *Client) Disconnect() error {
 	defer c.Unlock()
 	c.edgeXClient.Disconnect()
 	c.IsConnected = false
-	//TODO handle error
 	return nil
 }
 

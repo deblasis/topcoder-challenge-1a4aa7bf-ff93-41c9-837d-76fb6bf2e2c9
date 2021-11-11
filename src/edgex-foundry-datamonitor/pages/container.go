@@ -10,11 +10,11 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
 // containerScreen loads a tab panel for containers
-func containerScreen(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func containerScreen(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	content := container.NewBorder(
 		widget.NewLabelWithStyle("Top", fyne.TextAlignCenter, fyne.TextStyle{}),
 		widget.NewLabelWithStyle("Bottom", fyne.TextAlignCenter, fyne.TextStyle{}),
@@ -24,7 +24,7 @@ func containerScreen(_ fyne.Window, appState *state.AppManager) fyne.CanvasObjec
 	return container.NewCenter(content)
 }
 
-func makeAppTabsTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeAppTabsTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Tab 1", widget.NewLabel("Content of tab 1")),
 		container.NewTabItem("Tab 2 bigger", widget.NewLabel("Content of tab 2")),
@@ -37,7 +37,7 @@ func makeAppTabsTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject
 	return container.NewBorder(locations, nil, nil, nil, tabs)
 }
 
-func makeBorderLayout(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeBorderLayout(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	top := makeCell()
 	bottom := makeCell()
 	left := makeCell()
@@ -47,7 +47,7 @@ func makeBorderLayout(_ fyne.Window, appState *state.AppManager) fyne.CanvasObje
 	return container.NewBorder(top, bottom, left, right, middle)
 }
 
-func makeBoxLayout(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeBoxLayout(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	top := makeCell()
 	bottom := makeCell()
 	middle := widget.NewLabel("BoxLayout")
@@ -77,13 +77,13 @@ func makeCell() fyne.CanvasObject {
 	return rect
 }
 
-func makeCenterLayout(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeCenterLayout(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	middle := widget.NewButton("CenterLayout", func() {})
 
 	return container.NewCenter(middle)
 }
 
-func makeDocTabsTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeDocTabsTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	tabs := container.NewDocTabs(
 		container.NewTabItem("Doc 1", widget.NewLabel("Content of document 1")),
 		container.NewTabItem("Doc 2 bigger", widget.NewLabel("Content of document 2")),
@@ -98,7 +98,7 @@ func makeDocTabsTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject
 	return container.NewBorder(locations, nil, nil, nil, tabs)
 }
 
-func makeGridLayout(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeGridLayout(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	box1 := makeCell()
 	box2 := widget.NewLabel("Grid")
 	box3 := makeCell()
@@ -108,7 +108,7 @@ func makeGridLayout(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject
 		box1, box2, box3, box4)
 }
 
-func makeScrollTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeScrollTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	hlist := makeButtonList(20)
 	vlist := makeButtonList(50)
 
@@ -130,7 +130,7 @@ func makeScrollBothTab() fyne.CanvasObject {
 	return scroll
 }
 
-func makeSplitTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeSplitTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	left := widget.NewMultiLineEntry()
 	left.Wrapping = fyne.TextWrapWord
 	left.SetText("Long text is looooooooooooooong")

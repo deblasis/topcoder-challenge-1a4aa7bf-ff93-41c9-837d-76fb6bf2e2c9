@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
 func rgbGradient(x, y, w, h int) color.Color {
@@ -19,7 +19,7 @@ func rgbGradient(x, y, w, h int) color.Color {
 }
 
 // canvasScreen loads a graphics example panel for the demo app
-func canvasScreen(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func canvasScreen(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	gradient := canvas.NewHorizontalGradient(color.NRGBA{0x80, 0, 0, 0xff}, color.NRGBA{0, 0x80, 0, 0xff})
 	go func() {
 		for {

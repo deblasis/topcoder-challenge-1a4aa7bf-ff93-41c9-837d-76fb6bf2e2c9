@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
 func scaleString(c fyne.Canvas) string {
@@ -37,7 +37,7 @@ func setScaleText(scale, tex *widget.Label, win fyne.Window) {
 
 // advancedScreen loads a panel that shows details and settings that are a bit
 // more detailed than normally needed.
-func advancedScreen(win fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func advancedScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	scale := widget.NewLabel("")
 	tex := widget.NewLabel("")
 

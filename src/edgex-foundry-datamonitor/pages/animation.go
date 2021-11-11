@@ -8,10 +8,10 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
-func makeAnimationScreen(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeAnimationScreen(_ fyne.Window, appMgr *services.AppManager) fyne.CanvasObject {
 	curves := makeAnimationCurves()
 	curves.Move(fyne.NewPos(0, 140+theme.Padding()))
 	return fyne.NewContainerWithoutLayout(makeAnimationCanvas(), curves)

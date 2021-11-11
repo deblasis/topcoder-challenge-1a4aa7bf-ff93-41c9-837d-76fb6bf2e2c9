@@ -1,8 +1,8 @@
-package eventsprocessor
+package services
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"runtime"
 	"sync"
 	"time"
@@ -30,7 +30,7 @@ type EventProcessor struct {
 	sync.RWMutex
 }
 
-func New(eventsChannel chan *dtos.Event) *EventProcessor {
+func NewEventProcessor(eventsChannel chan *dtos.Event) *EventProcessor {
 	return &EventProcessor{
 		eventsChannel: eventsChannel,
 
@@ -53,12 +53,6 @@ func (ep *EventProcessor) Deactivate() {
 	defer ep.Unlock()
 	ep.state <- Paused
 }
-
-// func (ep *EventProcessor) IsActive() bool {
-// 	ep.RLock()
-// 	defer ep.RUnlock()
-// 	return ep.isActive
-// }
 
 func (ep *EventProcessor) processEvent(event *dtos.Event) {
 
@@ -118,12 +112,12 @@ func (ep *EventProcessor) Run() {
 		case state = <-ep.state:
 			switch state {
 			case Stopped:
-				fmt.Println("Stopped")
+				log.Println("EventsProcessor: Stopped")
 				return
 			case Running:
-				fmt.Println("Running")
+				log.Println("EventsProcessor: Running")
 			case Paused:
-				fmt.Println("Paused")
+				log.Println("EventsProcessor: Paused")
 			}
 
 		case event := <-ep.eventsChannel:
@@ -138,14 +132,6 @@ func (ep *EventProcessor) Run() {
 		}
 	}
 }
-
-type processorState int
-
-const (
-	Stopped processorState = iota
-	Paused
-	Running
-)
 
 type topNEvents struct {
 	n      int

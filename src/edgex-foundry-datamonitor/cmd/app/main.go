@@ -4,14 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
-	"github.com/deblasis/edgex-foundry-datamonitor/eventsprocessor"
 	"github.com/deblasis/edgex-foundry-datamonitor/messaging"
 	"github.com/deblasis/edgex-foundry-datamonitor/pages"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
 
 	"fyne.io/fyne/v2/container"
@@ -40,33 +40,53 @@ func main() {
 	}
 
 	events := make(chan *dtos.Event)
-	ep := eventsprocessor.New(events)
+	ep := services.NewEventProcessor(events)
 	go ep.Run()
 
-	client.OnConnect = func() {
-		messages, _ := client.Subscribe(config.DefaultEventsTopic)
+	client.OnConnect = func() bool {
+		messages, errs := client.Subscribe(config.DefaultEventsTopic)
+
+		ok := make(chan bool, 1)
+
 		go func() {
+		LOOP:
 			for {
 				select {
-				// case e := <-errors:
-				//TODO errors
+				case err := <-errs:
+					if client.IsConnecting {
+						if strings.Contains(err.Error(), "redis: client is closed") {
+							//handling "redis: client is closed on connect" which is ok because it's then set by go-mod-messaging and the error is ignored
+							continue
+						}
+						uerr := errors.New("Error while subscribing to Redis")
+						dialog.ShowError(uerr, topWindow)
+						log.Println(err)
+						client.IsConnecting = false
+						ok <- false
+						break LOOP
+					}
 				case msgEnvelope := <-messages:
 					event, _ := messaging.ParseEvent(msgEnvelope.Payload)
-					//TODO errors
 					events <- event
+					select {
+					case ok <- true:
+					default:
+					}
 				}
 			}
 		}()
+
+		return <-ok
 	}
 
-	AppManager := state.NewAppManager(client, cfg, ep)
+	AppManager := services.NewAppManager(client, cfg, ep)
 
 	shouldConnect := a.Preferences().BoolWithFallback(config.PrefShouldConnectAtStartup, false)
 
-	if shouldConnect && cfg.RedisHost != nil && cfg.RedisPort != nil {
+	if shouldConnect {
 		a.SendNotification(&fyne.Notification{
 			Title:   "Connecting...",
-			Content: fmt.Sprintf("Connecting to %v:%v", cfg.RedisHost, cfg.RedisPort),
+			Content: fmt.Sprintf("Connecting to %v:%v", cfg.GetRedisHost(), cfg.GetRedisPort()),
 		})
 		if err = client.Connect(); err != nil {
 			uerr := errors.New(fmt.Sprintf("Cannot connect\n%s", err))
@@ -80,7 +100,7 @@ func main() {
 	title := widget.NewLabel("Component name")
 	intro := widget.NewLabel("An introduction would probably go\nhere, as well as a")
 	intro.Wrapping = fyne.TextWrapWord
-	setPage := func(uid string, t pages.Page, appMgr *state.AppManager) {
+	setPage := func(uid string, t pages.Page, appMgr *services.AppManager) {
 		if fyne.CurrentDevice().IsMobile() {
 			child := a.NewWindow(t.Title)
 			topWindow = child
@@ -115,7 +135,7 @@ func main() {
 		split.Offset = 0.2
 		w.SetContent(split)
 	}
-	w.Resize(fyne.NewSize(800, 600))
+	w.Resize(fyne.NewSize(800, 700))
 	w.ShowAndRun()
 }
 
@@ -134,7 +154,7 @@ func logLifecycle(a fyne.App) {
 	})
 }
 
-func makeNav(setPage func(_ string, page pages.Page, _ *state.AppManager), appMgr *state.AppManager) fyne.CanvasObject {
+func makeNav(setPage func(_ string, page pages.Page, _ *services.AppManager), appMgr *services.AppManager) fyne.CanvasObject {
 	a := fyne.CurrentApp()
 
 	tree := &widget.Tree{
@@ -147,25 +167,23 @@ func makeNav(setPage func(_ string, page pages.Page, _ *state.AppManager), appMg
 			return ok && len(children) > 0
 		},
 		CreateNode: func(branch bool) fyne.CanvasObject {
-			return widget.NewLabel("Collection Widgets")
+			return widget.NewLabel("Nav widgets")
 		},
 		UpdateNode: func(uid string, branch bool, obj fyne.CanvasObject) {
 			t, ok := pages.Pages[uid]
 			if !ok {
-				fyne.LogError("Missing tutorial panel: "+uid, nil)
+				fyne.LogError("Missing panel: "+uid, nil)
 				return
 			}
 			obj.(*widget.Label).SetText(t.Title)
 		},
 		OnSelected: func(uid string) {
 			if t, ok := pages.Pages[uid]; ok {
-				//a.Preferences().SetString(preferenceCurrentTutorial, uid)
 				setPage(uid, t, appMgr)
 			}
 		},
 	}
 
-	//TODO refactor
 	tree.Select("home")
 
 	themes := container.New(layout.NewGridLayout(2),
@@ -183,7 +201,7 @@ func makeNav(setPage func(_ string, page pages.Page, _ *state.AppManager), appMg
 	})
 
 	switch appMgr.GetConnectionState() {
-	case state.Connected:
+	case services.ClientConnected:
 		disconnectBtn.Show()
 	default:
 		disconnectBtn.Hide()

@@ -14,7 +14,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
 const (
@@ -37,7 +37,7 @@ var (
 	endProgress chan interface{}
 )
 
-func makeAccordionTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeAccordionTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	link, err := url.Parse("https://fyne.io/")
 	if err != nil {
 		fyne.LogError("Could not parse URL", err)
@@ -54,7 +54,7 @@ func makeAccordionTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObje
 	return ac
 }
 
-func makeButtonTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeButtonTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	disabled := widget.NewButton("Disabled", func() {})
 	disabled.Disable()
 
@@ -91,7 +91,7 @@ func makeButtonTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject 
 	)
 }
 
-func makeCardTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeCardTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	card1 := widget.NewCard("Book a table", "Which time suits?",
 		widget.NewRadioGroup([]string{"6:30pm", "7:00pm", "7:45pm"}, func(string) {}))
 	card2 := widget.NewCard("With media", "No content, with image", nil)
@@ -101,7 +101,7 @@ func makeCardTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
 		container.NewVBox(card2))
 }
 
-func makeEntryTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeEntryTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	entry := widget.NewEntry()
 	entry.SetPlaceHolder("Entry")
 	entryDisabled := widget.NewEntry()
@@ -139,7 +139,7 @@ func makeTextGrid() *widget.TextGrid {
 	return grid
 }
 
-func makeTextTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeTextTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	label := widget.NewLabel("Label")
 
 	link, err := url.Parse("https://fyne.io/")
@@ -243,7 +243,7 @@ This styled row should also wrap as expected, but only *when required*.
 		container.NewGridWithRows(2, rich, entryLoremIpsum))
 }
 
-func makeInputTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeInputTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	selectEntry := widget.NewSelectEntry([]string{"Option A", "Option B", "Option C"})
 	selectEntry.PlaceHolder = "Type or select"
 	disabledCheck := widget.NewCheck("Disabled check", func(bool) {})
@@ -267,7 +267,7 @@ func makeInputTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
 	)
 }
 
-func makeProgressTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeProgressTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	stopProgress()
 
 	progress = widget.NewProgressBar()
@@ -287,7 +287,7 @@ func makeProgressTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObjec
 		widget.NewLabel("Infinite"), infProgress)
 }
 
-func makeFormTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeFormTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	name := widget.NewEntry()
 	name.SetPlaceHolder("John Smith")
 
@@ -325,7 +325,7 @@ func makeFormTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
 	return form
 }
 
-func makeToolbarTab(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func makeToolbarTab(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	t := widget.NewToolbar(widget.NewToolbarAction(theme.MailComposeIcon(), func() { fmt.Println("New") }),
 		widget.NewToolbarSeparator(),
 		widget.NewToolbarSpacer(),
@@ -380,7 +380,7 @@ func stopProgress() {
 }
 
 // widgetScreen shows a panel containing widget demos
-func widgetScreen(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func widgetScreen(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	content := container.NewVBox(
 		widget.NewLabel("Labels"),
 		widget.NewButtonWithIcon("Icons", theme.HomeIcon(), func() {}),

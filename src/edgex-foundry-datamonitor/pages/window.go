@@ -8,10 +8,10 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
-func windowScreen(_ fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func windowScreen(_ fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	windowGroup := container.NewVBox(
 		widget.NewButton("New window", func() {
 			w := fyne.CurrentApp().NewWindow("Hello")

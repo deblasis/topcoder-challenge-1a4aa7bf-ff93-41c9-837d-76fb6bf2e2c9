@@ -3,7 +3,6 @@ package pages
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -14,47 +13,11 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
 )
 
-func parseURL(urlStr string) *url.URL {
-	link, err := url.Parse(urlStr)
-	if err != nil {
-		fyne.LogError("Could not parse URL", err)
-	}
-
-	return link
-}
-
-func stateWithData(data binding.DataMap) *widget.Form {
-	keys := data.Keys()
-	items := make([]*widget.FormItem, len(keys))
-	for i, k := range keys {
-		data, err := data.GetItem(k)
-		if err != nil {
-			items[i] = widget.NewFormItem(k, widget.NewLabel(err.Error()))
-		}
-		items[i] = widget.NewFormItem(k, createItem(data))
-	}
-
-	return widget.NewForm(items...)
-}
-
-func createItem(v binding.DataItem) fyne.CanvasObject {
-	switch val := v.(type) {
-	case binding.Float:
-		return widget.NewLabelWithData(binding.FloatToString(val))
-	case binding.Int:
-		return widget.NewLabelWithData(binding.IntToString(val))
-	case binding.String:
-		return widget.NewLabelWithData(val)
-	default:
-		return widget.NewLabel(fmt.Sprintf("%T", val))
-	}
-}
-
-func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
+func homeScreen(w fyne.Window, appManager *services.AppManager) fyne.CanvasObject {
 	// logo := canvas.NewImageFromResource(data.FyneScene)
 	// logo.FillMode = canvas.ImageFillContain
 	// if fyne.CurrentDevice().IsMobile() {
@@ -68,8 +31,6 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 	redisHost, redisPort := appManager.GetRedisHostPort()
 	connectionState := appManager.GetConnectionState()
 	eventProcessor := appManager.GetEventProcessor()
-
-	connectedContent := container.NewVBox()
 
 	connectingContent := container.NewCenter(container.NewVBox(
 		container.NewHBox(widget.NewProgressBarInfinite()),
@@ -100,7 +61,7 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 	eventsPerSecondLastMinute := binding.BindFloat(config.Float(eventProcessor.EventsPerSecondLastMinute))
 	readingsPerSecondLastMinute := binding.BindFloat(config.Float(eventProcessor.ReadingsPerSecondLastMinute))
 
-	dashboardStats := container.NewGridWithRows(2,
+	dashboardStats := container.NewCenter(container.NewGridWithRows(2,
 		container.NewGridWithColumns(4,
 			widget.NewLabelWithStyle("Total Number of Events", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			widget.NewLabelWithData(binding.IntToString(totalNumberEventsBinding)),
@@ -113,44 +74,36 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 			widget.NewLabelWithStyle("Readings per second", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			widget.NewLabelWithData(binding.FloatToString(readingsPerSecondLastMinute)),
 		),
-	)
-
-	//form := stateWithData(boundState)
-
-	//form.Hide()
+	))
+	connectedContent := dashboardStats
 
 	dashboardStats.Hide()
 	tableContainer.Hide()
 
 	switch connectionState {
-	case state.Connected:
+	case services.ClientConnected:
 		contentContainer = connectedContent
 		dashboardStats.Show()
 		tableContainer = container.NewMax(eventsTable)
-	case state.Connecting:
+	case services.ClientConnecting:
 		contentContainer = connectingContent
 		dashboardStats.Hide()
 		tableContainer.Hide()
-	case state.Disconnected:
+	case services.ClientDisconnected:
 		contentContainer = disconnectedContent
 		dashboardStats.Hide()
 		tableContainer = container.NewMax()
 	}
 
-	home := container.NewMax(
-		container.NewGridWithRows(2,
-			container.NewHBox(
-				contentContainer,
-				dashboardStats,
-			),
-			tableContainer,
-		),
+	home := container.NewGridWithRows(2,
+		contentContainer,
+		tableContainer,
 	)
 
 	go func() {
 		for {
 			time.Sleep(100 * time.Millisecond)
-			if appManager.GetConnectionState() != state.Connected {
+			if appManager.GetConnectionState() != services.ClientConnected {
 				continue
 			}
 			//log.Printf("refreshing UI: events %v\n", ep.TotalNumberEvents)
@@ -160,12 +113,9 @@ func homeScreen(w fyne.Window, appManager *state.AppManager) fyne.CanvasObject {
 			readingsPerSecondLastMinute.Set(eventProcessor.ReadingsPerSecondLastMinute)
 			eventsTable = renderEventsTable(eventProcessor.LastEvents.Get(), a.Preferences().BoolWithFallback(config.PrefEventsTableSortOrderAscending, config.DefaultEventsTableSortOrderAscending))
 
-			//dashboardStats.Refresh()
-			// home.Objects[0].(*fyne.Container).Objects[1] = table
 			if len(tableContainer.Objects) > 0 {
 				tableContainer.Objects[0] = eventsTable
 			}
-			//home.Refresh()
 
 		}
 	}()
@@ -205,7 +155,7 @@ func renderEventsTable(events []*dtos.Event, sortAsc bool) fyne.CanvasObject {
 
 	}
 
-	t := widget.NewTable(
+	table := widget.NewTable(
 		func() (int, int) { return 6, 2 },
 		func() fyne.CanvasObject {
 			return widget.NewLabel("")
@@ -233,8 +183,8 @@ func renderEventsTable(events []*dtos.Event, sortAsc bool) fyne.CanvasObject {
 
 		})
 	// t.SetColumnWidth(0, 34)
-	t.SetColumnWidth(0, 350)
-	t.SetColumnWidth(1, 350)
+	table.SetColumnWidth(0, 350)
+	table.SetColumnWidth(1, 350)
 
 	sortorder := "ascendingly"
 	if !sortAsc {
@@ -243,12 +193,13 @@ func renderEventsTable(events []*dtos.Event, sortAsc bool) fyne.CanvasObject {
 	return container.NewBorder(
 		container.NewVBox(layout.NewSpacer(), container.NewHBox(
 			widget.NewLabelWithStyle("Last 5 events", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewLabelWithStyle(fmt.Sprintf("sorted %v", sortorder), fyne.TextAlignTrailing, fyne.TextStyle{Italic: true}),
+			layout.NewSpacer(),
+			widget.NewLabelWithStyle(fmt.Sprintf("sorted %v by timestamp", sortorder), fyne.TextAlignTrailing, fyne.TextStyle{Italic: true}),
 		)),
 		nil,
 		nil,
 		nil,
-		t,
+		table,
 	)
 
 }

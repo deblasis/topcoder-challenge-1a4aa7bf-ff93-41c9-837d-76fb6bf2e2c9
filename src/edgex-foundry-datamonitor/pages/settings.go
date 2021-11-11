@@ -13,11 +13,11 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/data"
-	"github.com/deblasis/edgex-foundry-datamonitor/state"
+	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
 // dialogScreen loads demos of the dialogs we support
-func settingsScreen(win fyne.Window, appState *state.AppManager) fyne.CanvasObject {
+func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasObject {
 	a := fyne.CurrentApp()
 	preferences := a.Preferences()
 
@@ -54,15 +54,6 @@ func settingsScreen(win fyne.Window, appState *state.AppManager) fyne.CanvasObje
 				HintText: "",
 			},
 		},
-		OnCancel: func() {
-			hostname.Text = config.RedisDefaultHost
-			port.Text = fmt.Sprintf("%d", config.RedisDefaultPort)
-
-			shouldConnectAutomatically.SetChecked(config.DefaultShouldConnectAtStartup)
-			eventsSortedAscendingly.SetChecked(config.DefaultEventsTableSortOrderAscending)
-
-			fmt.Println("Cancelled")
-		},
 		OnSubmit: func() {
 			log.Println("Settings form submitted")
 
@@ -84,10 +75,23 @@ func settingsScreen(win fyne.Window, appState *state.AppManager) fyne.CanvasObje
 		CancelText: "Reset defaults",
 	}
 
-	return container.NewCenter(
+	form.OnCancel = func() {
+		hostname.Text = config.RedisDefaultHost
+		port.Text = fmt.Sprintf("%d", config.RedisDefaultPort)
+
+		shouldConnectAutomatically.SetChecked(config.DefaultShouldConnectAtStartup)
+		eventsSortedAscendingly.SetChecked(config.DefaultEventsTableSortOrderAscending)
+
+		hostname.Validate()
+		port.Validate()
+		form.Refresh()
+		log.Println("Settings reset to default")
+	}
+
+	return container.NewMax(
 		container.NewVBox(
 			widget.NewLabelWithStyle("Please enter EdgeX Redis Pub/Sub Connection Settings", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-			container.NewMax(
+			container.NewCenter(
 				container.NewHBox(
 					form,
 				)),
