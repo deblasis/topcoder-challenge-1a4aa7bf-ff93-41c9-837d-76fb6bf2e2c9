@@ -1,5 +1,5 @@
-# topcoder-challenge-4c8811c4-6504-40a1-a9d0-ad25ee7c1af7
-EdgeX Foundry(TM) - Build Simple Data Monitor UI #01
+# topcoder-challenge-1a4aa7bf-ff93-41c9-837d-76fb6bf2e2c9
+EdgeX Foundry(TM) - Build Simple Data Monitor UI #02
 
 TLDR; left is Linux, right is Windows
 <img src="./assets/crossplatform.jpg" alt="crossplatform" />
