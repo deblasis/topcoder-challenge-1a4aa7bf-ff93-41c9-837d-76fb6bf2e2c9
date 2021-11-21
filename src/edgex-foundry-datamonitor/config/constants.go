@@ -20,6 +20,7 @@ const (
 
 	PrefShouldConnectAtStartup        = "_ShouldConnectAtStartup"
 	PrefEventsTableSortOrderAscending = "_EventsTableSortOrderAscending"
+	PrefBufferSizeInDataPage          = "_BufferSizeInDataPage"
 )
 
 const (
@@ -30,4 +31,5 @@ const (
 
 	DefaultShouldConnectAtStartup        = false
 	DefaultEventsTableSortOrderAscending = false
+	DefaultBufferSizeInDataPage          = 100
 )
