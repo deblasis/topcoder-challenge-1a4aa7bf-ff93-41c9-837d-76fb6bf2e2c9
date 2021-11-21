@@ -15,6 +15,7 @@
 package pages
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -46,12 +47,24 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 	shouldConnectAutomatically := widget.NewCheckWithData("Connect at startup", binding.NewBool())
 	eventsSortedAscendingly := widget.NewCheckWithData("Sort events ascendingly", binding.NewBool())
 
+	dataPageBufferSize := widget.NewEntry()
+	dataPageBufferSize.SetPlaceHolder("* required")
+	dataPageBufferSize.Validator = func(s string) error {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 1 || n > 100000 {
+			return ErrInvalidBufferSize
+		}
+
+		return nil
+	}
+
 	//read from settings
 	hostname.SetText(preferences.StringWithFallback(config.PrefRedisHost, config.RedisDefaultHost))
 
 	port.SetText(fmt.Sprintf("%d", preferences.IntWithFallback(config.PrefRedisPort, config.RedisDefaultPort)))
 	shouldConnectAutomatically.SetChecked(preferences.BoolWithFallback(config.PrefShouldConnectAtStartup, config.DefaultShouldConnectAtStartup))
 	eventsSortedAscendingly.SetChecked(preferences.BoolWithFallback(config.PrefEventsTableSortOrderAscending, config.DefaultEventsTableSortOrderAscending))
+	dataPageBufferSize.SetText(fmt.Sprintf("%d", preferences.IntWithFallback(config.PrefBufferSizeInDataPage, config.DefaultBufferSizeInDataPage)))
 
 	form := &widget.Form{
 		Items: []*widget.FormItem{
@@ -67,6 +80,7 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 				Widget:   eventsSortedAscendingly,
 				HintText: "",
 			},
+			{Text: "Buffer size in Data page", Widget: dataPageBufferSize},
 		},
 		OnSubmit: func() {
 			log.Println("Settings form submitted")
@@ -79,7 +93,6 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 			preferences.SetBool(config.PrefShouldConnectAtStartup, shouldConnectAutomatically.Checked)
 			preferences.SetBool(config.PrefEventsTableSortOrderAscending, eventsSortedAscendingly.Checked)
 
-			//preferences.SetString(preferenceCurrentTutorial, uid)
 			a.SendNotification(&fyne.Notification{
 				Title:   "EdgeX Redis Pub/Sub Connection Settings",
 				Content: fmt.Sprintf("%v:%v", hostname.Text, port.Text),
@@ -112,3 +125,7 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 		))
 
 }
+
+var (
+	ErrInvalidBufferSize = errors.New("Must be a number between 1 - 100000")
+)
