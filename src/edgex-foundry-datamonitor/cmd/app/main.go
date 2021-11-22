@@ -57,6 +57,19 @@ func main() {
 
 	events := make(chan *dtos.Event)
 	ep := services.NewEventProcessor(events)
+	db := services.NewDB(config.DefaultFilteringUpdateCadenceMs)
+	ep.AttachListener(db)
+
+	AppManager := services.NewAppManager(client, cfg, ep, db)
+
+	homePageHandler := pages.NewHomePageHandler(AppManager)
+	AppManager.SetPageHandler(pages.HomePageKey, homePageHandler)
+	ep.AttachListener(homePageHandler)
+
+	dataPageHandler := pages.NewDataPageHandler(AppManager)
+	AppManager.SetPageHandler(pages.DataPageKey, dataPageHandler)
+	ep.AttachListener(dataPageHandler)
+
 	go ep.Run()
 
 	client.OnConnect = func() bool {
@@ -95,8 +108,6 @@ func main() {
 		return <-ok
 	}
 
-	AppManager := services.NewAppManager(client, cfg, ep)
-
 	shouldConnect := a.Preferences().BoolWithFallback(config.PrefShouldConnectAtStartup, false)
 
 	if shouldConnect {
@@ -116,7 +127,8 @@ func main() {
 	title := widget.NewLabel("Component name")
 	intro := widget.NewLabel("An introduction would probably go\nhere, as well as a")
 	intro.Wrapping = fyne.TextWrapWord
-	setPage := func(uid string, t pages.Page, appMgr *services.AppManager) {
+	setPage := func(uid widget.TreeNodeID, t pages.Page, appMgr *services.AppManager) {
+		appMgr.CurrentPage = uid
 		if fyne.CurrentDevice().IsMobile() {
 			child := a.NewWindow(t.Title)
 			topWindow = child
@@ -170,14 +182,14 @@ func logLifecycle(a fyne.App) {
 	})
 }
 
-func makeNav(setPage func(_ string, page pages.Page, _ *services.AppManager), appMgr *services.AppManager) fyne.CanvasObject {
+func makeNav(setPage func(_ widget.TreeNodeID, page pages.Page, appMgr *services.AppManager), appMgr *services.AppManager) fyne.CanvasObject {
 	a := fyne.CurrentApp()
 
 	tree := &widget.Tree{
-		ChildUIDs: func(uid string) []string {
+		ChildUIDs: func(uid widget.TreeNodeID) []widget.TreeNodeID {
 			return pages.PageIndex[uid]
 		},
-		IsBranch: func(uid string) bool {
+		IsBranch: func(uid widget.TreeNodeID) bool {
 			children, ok := pages.PageIndex[uid]
 
 			return ok && len(children) > 0
@@ -185,7 +197,7 @@ func makeNav(setPage func(_ string, page pages.Page, _ *services.AppManager), ap
 		CreateNode: func(branch bool) fyne.CanvasObject {
 			return widget.NewLabel("Nav widgets")
 		},
-		UpdateNode: func(uid string, branch bool, obj fyne.CanvasObject) {
+		UpdateNode: func(uid widget.TreeNodeID, branch bool, obj fyne.CanvasObject) {
 			t, ok := pages.Pages[uid]
 			if !ok {
 				fyne.LogError("Missing panel: "+uid, nil)
@@ -193,7 +205,7 @@ func makeNav(setPage func(_ string, page pages.Page, _ *services.AppManager), ap
 			}
 			obj.(*widget.Label).SetText(t.Title)
 		},
-		OnSelected: func(uid string) {
+		OnSelected: func(uid widget.TreeNodeID) {
 			if t, ok := pages.Pages[uid]; ok {
 				setPage(uid, t, appMgr)
 			}

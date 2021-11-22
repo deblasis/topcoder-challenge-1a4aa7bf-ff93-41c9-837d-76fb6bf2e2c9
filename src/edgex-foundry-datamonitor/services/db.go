@@ -124,6 +124,32 @@ func (db *DB) UpdateFilter(filter string) {
 
 }
 
+func (db *DB) GetEventsCount() int64 {
+	var count int64
+	db.events.Query(func(txn *column.Txn) error {
+		if db.filterString == "" {
+			count = int64(txn.Count())
+		} else {
+			count = int64(txn.With("matching_serial_idx").Count())
+		}
+		return nil
+	})
+	return count
+}
+
+func (db *DB) GetReadingsCount() int64 {
+	var count int64
+	db.readings.Query(func(txn *column.Txn) error {
+		if db.filterString == "" {
+			count = int64(txn.Count())
+		} else {
+			count = int64(txn.With("matching_serial_idx").Count())
+		}
+		return nil
+	})
+	return count
+}
+
 func (db *DB) GetEvents() []dtos.Event {
 	events := make([]dtos.Event, 0)
 
@@ -314,9 +340,9 @@ func (db *DB) filter() {
 	wg.Wait()
 }
 
-func (db *DB) IngestEvent(event dtos.Event) {
+func (db *DB) OnEventReceived(event dtos.Event) {
 	eSerial := db.nextEventSerial()
-	fmt.Printf("eventSerial: %v\n", eSerial)
+	log.Printf("eventSerial: %v\n", eSerial)
 
 	db.events.InsertObject(eventToMap(event, eSerial))
 	for _, reading := range event.Readings {
@@ -336,6 +362,7 @@ func (db *DB) IngestEvent(event dtos.Event) {
 		db.evictOldReadings()
 	}()
 	wg.Wait()
+
 }
 
 func (db *DB) evictOldEvents() {

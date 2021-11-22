@@ -35,7 +35,9 @@ import (
 )
 
 func homeScreen(w fyne.Window, appManager *services.AppManager) fyne.CanvasObject {
-	a := fyne.CurrentApp()
+
+	h := appManager.GetPageHandler(HomePageKey).(*homePageHandler)
+
 	var contentContainer *fyne.Container
 
 	logo := canvas.NewImageFromResource(bundled.ResourceCompanyLogoLgPng)
@@ -48,7 +50,6 @@ func homeScreen(w fyne.Window, appManager *services.AppManager) fyne.CanvasObjec
 
 	redisHost, redisPort := appManager.GetRedisHostPort()
 	connectionState := appManager.GetConnectionState()
-	eventProcessor := appManager.GetEventProcessor()
 
 	connectingContent := container.NewCenter(container.NewVBox(
 		container.NewHBox(widget.NewProgressBarInfinite()),
@@ -71,73 +72,54 @@ func homeScreen(w fyne.Window, appManager *services.AppManager) fyne.CanvasObjec
 		),
 	))
 
-	eventsTable := renderEventsTable(eventProcessor.LastEvents.Get(), false)
-	tableContainer := container.NewMax(eventsTable)
+	h.SetInitialState()
+	h.RehydrateSession()
+	h.SetupBindings()
 
-	totalNumberEventsBinding := binding.BindInt(config.Int(eventProcessor.TotalNumberEvents))
-	totalNumberReadingsBinding := binding.BindInt(config.Int(eventProcessor.TotalNumberReadings))
+	connectedContent := h.dashboardStats
 
-	eventsPerSecondLastMinute := binding.BindFloat(config.Float(eventProcessor.EventsPerSecondLastMinute))
-	readingsPerSecondLastMinute := binding.BindFloat(config.Float(eventProcessor.ReadingsPerSecondLastMinute))
-
-	dashboardStats := container.NewCenter(container.NewGridWithRows(2,
-		container.NewGridWithColumns(4,
-			widget.NewLabelWithStyle("Total Number of Events", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewLabelWithData(binding.IntToString(totalNumberEventsBinding)),
-			widget.NewLabelWithStyle("Total Number of Readings", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewLabelWithData(binding.IntToString(totalNumberReadingsBinding)),
-		),
-		container.NewGridWithColumns(4,
-			widget.NewLabelWithStyle("Events per second", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewLabelWithData(binding.FloatToString(eventsPerSecondLastMinute)),
-			widget.NewLabelWithStyle("Readings per second", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewLabelWithData(binding.FloatToString(readingsPerSecondLastMinute)),
-		),
-	))
-	connectedContent := dashboardStats
-
-	dashboardStats.Hide()
-	tableContainer.Hide()
+	h.dashboardStats.Hide()
+	h.tableContainer.Hide()
 
 	switch connectionState {
 	case services.ClientConnected:
 		contentContainer = connectedContent
-		dashboardStats.Show()
-		tableContainer = container.NewMax(eventsTable)
+		h.dashboardStats.Show()
+		h.tableContainer = container.NewMax(h.eventsTable)
 	case services.ClientConnecting:
 		contentContainer = connectingContent
-		dashboardStats.Hide()
-		tableContainer.Hide()
+		h.dashboardStats.Hide()
+		h.tableContainer.Hide()
 	case services.ClientDisconnected:
 		contentContainer = disconnectedContent
-		dashboardStats.Hide()
-		tableContainer = container.NewMax()
+		h.dashboardStats.Hide()
+		h.tableContainer = container.NewMax()
 	}
 
 	home := container.NewGridWithRows(2,
 		contentContainer,
-		tableContainer,
+		h.tableContainer,
 	)
 
-	go func() {
-		for {
-			time.Sleep(100 * time.Millisecond)
-			if appManager.GetConnectionState() != services.ClientConnected {
-				continue
-			}
-			//log.Printf("refreshing UI: events %v\n", ep.TotalNumberEvents)
-			totalNumberEventsBinding.Set(eventProcessor.TotalNumberEvents)
-			totalNumberReadingsBinding.Set(eventProcessor.TotalNumberReadings)
-			eventsPerSecondLastMinute.Set(eventProcessor.EventsPerSecondLastMinute)
-			readingsPerSecondLastMinute.Set(eventProcessor.ReadingsPerSecondLastMinute)
-			eventsTable = renderEventsTable(eventProcessor.LastEvents.Get(), a.Preferences().BoolWithFallback(config.PrefEventsTableSortOrderAscending, config.DefaultEventsTableSortOrderAscending))
+	// go func() {
+	// 	for {
+	// 		time.Sleep(100 * time.Millisecond)
+	// 		if appManager.GetConnectionState() != services.ClientConnected {
+	// 			continue
+	// 		}
+	// 		//log.Printf("refreshing UI: events %v\n", ep.TotalNumberEvents)
+	// 		totalNumberEventsBinding.Set(eventProcessor.TotalNumberEvents)
+	// 		totalNumberReadingsBinding.Set(eventProcessor.TotalNumberReadings)
+	// 		eventsPerSecondLastMinute.Set(eventProcessor.EventsPerSecondLastMinute)
+	// 		readingsPerSecondLastMinute.Set(eventProcessor.ReadingsPerSecondLastMinute)
+	// 		eventsTable = renderEventsTable(eventProcessor.LastEvents.Get(), a.Preferences().BoolWithFallback(config.PrefEventsTableSortOrderAscending, config.DefaultEventsTableSortOrderAscending))
 
-			if len(tableContainer.Objects) > 0 {
-				tableContainer.Objects[0] = eventsTable
-			}
+	// 		if len(tableContainer.Objects) > 0 {
+	// 			tableContainer.Objects[0] = eventsTable
+	// 		}
 
-		}
-	}()
+	// 	}
+	// }()
 
 	return home
 
@@ -220,5 +202,83 @@ func renderEventsTable(events []*dtos.Event, sortAsc bool) fyne.CanvasObject {
 		nil,
 		table,
 	)
+
+}
+
+type homePageHandler struct {
+	appState *services.AppManager
+
+	Key widget.TreeNodeID
+
+	totalNumberEventsBinding   binding.ExternalInt
+	totalNumberReadingsBinding binding.ExternalInt
+
+	eventsPerSecondLastMinute   binding.ExternalFloat
+	readingsPerSecondLastMinute binding.ExternalFloat
+
+	eventsTable    fyne.CanvasObject
+	tableContainer *fyne.Container
+	dashboardStats *fyne.Container
+}
+
+func (p *homePageHandler) SetInitialState()  {}
+func (p *homePageHandler) RehydrateSession() {}
+func (p *homePageHandler) SetupBindings() {
+	eventProcessor := p.appState.GetEventProcessor()
+
+	p.totalNumberEventsBinding = binding.BindInt(config.Int(eventProcessor.TotalNumberEvents))
+	p.totalNumberReadingsBinding = binding.BindInt(config.Int(eventProcessor.TotalNumberReadings))
+
+	p.eventsPerSecondLastMinute = binding.BindFloat(config.Float(eventProcessor.EventsPerSecondLastMinute))
+	p.readingsPerSecondLastMinute = binding.BindFloat(config.Float(eventProcessor.ReadingsPerSecondLastMinute))
+
+	p.dashboardStats = container.NewCenter(container.NewGridWithRows(2,
+		container.NewGridWithColumns(4,
+			widget.NewLabelWithStyle("Total Number of Events", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithData(binding.IntToString(p.totalNumberEventsBinding)),
+			widget.NewLabelWithStyle("Total Number of Readings", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithData(binding.IntToString(p.totalNumberReadingsBinding)),
+		),
+		container.NewGridWithColumns(4,
+			widget.NewLabelWithStyle("Events per second", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithData(binding.FloatToString(p.eventsPerSecondLastMinute)),
+			widget.NewLabelWithStyle("Readings per second", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithData(binding.FloatToString(p.readingsPerSecondLastMinute)),
+		),
+	))
+}
+
+func NewHomePageHandler(appState *services.AppManager) *homePageHandler {
+	p := &homePageHandler{
+		Key:      HomePageKey,
+		appState: appState,
+	}
+
+	eventProcessor := appState.GetEventProcessor()
+
+	p.eventsTable = renderEventsTable(eventProcessor.LastEvents.Get(), false)
+	p.tableContainer = container.NewMax(p.eventsTable)
+
+	return p
+}
+
+func (p *homePageHandler) OnEventReceived(event dtos.Event) {
+	a := fyne.CurrentApp()
+
+	if p.appState.GetConnectionState() != services.ClientConnected {
+		return
+	}
+	eventProcessor := p.appState.GetEventProcessor()
+	//log.Printf("refreshing UI: events %v\n", ep.TotalNumberEvents)
+	p.totalNumberEventsBinding.Set(eventProcessor.TotalNumberEvents)
+	p.totalNumberReadingsBinding.Set(eventProcessor.TotalNumberReadings)
+	p.eventsPerSecondLastMinute.Set(eventProcessor.EventsPerSecondLastMinute)
+	p.readingsPerSecondLastMinute.Set(eventProcessor.ReadingsPerSecondLastMinute)
+	p.eventsTable = renderEventsTable(eventProcessor.LastEvents.Get(), a.Preferences().BoolWithFallback(config.PrefEventsTableSortOrderAscending, config.DefaultEventsTableSortOrderAscending))
+
+	if len(p.tableContainer.Objects) > 0 {
+		p.tableContainer.Objects[0] = p.eventsTable
+		p.tableContainer.Objects[0].Refresh()
+	}
 
 }

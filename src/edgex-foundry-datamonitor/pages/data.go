@@ -35,165 +35,22 @@ import (
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
 )
 
-type dataPage struct {
-	appState           *services.AppManager
-	dataType           *widget.RadioGroup
-	search             *widget.Entry
-	searchBtn          *widget.Button
-	resetSearchBtn     *widget.Button
-	applyBufferSizeBtn *widget.Button
-	bufferSize         *widget.Entry
-	bufferSizeBinding  binding.Int
-	bufferProgress     *widget.ProgressBar
-}
+func dataScreen(win fyne.Window, appManager *services.AppManager) fyne.CanvasObject {
 
-func (p *dataPage) initialState() {
-	preferences := fyne.CurrentApp().Preferences()
-
-	if p.dataType.Selected == "" {
-		p.dataType.SetSelected("Events")
-	}
-	p.searchBtn.Disable()
-	p.resetSearchBtn.Disable()
-	p.applyBufferSizeBtn.Disable()
-
-	currentBuffsize := preferences.IntWithFallback(config.PrefBufferSizeInDataPage, config.DefaultBufferSizeInDataPage)
-
-	b := p.bufferSizeBinding
-	b.Set(currentBuffsize)
-	p.bufferSize.SetText(fmt.Sprintf("%d", currentBuffsize))
-
-	p.bufferProgress.Max = float64(currentBuffsize)
-}
-
-func (p *dataPage) rehydrateSession() {
-	sessionSearch := p.appState.GetDataPageSearch()
-	if sessionSearch != nil {
-		p.search.Text = config.StringVal(sessionSearch)
-		p.resetSearchBtn.Enable()
-	}
-	bufferSize := p.appState.GetDataPageBufferSize()
-	if bufferSize != nil {
-		b := p.bufferSizeBinding
-		b.Set(*bufferSize)
-		log.Printf("bufferSize is %v", *bufferSize)
-		//p.bufferSize.SetText(fmt.Sprintf("%d", *bufferSize))
-		//p.bufferSize.SetText("100")
-	}
-}
-
-func (p *dataPage) bindEventHandlers() {
-	p.search.OnChanged = func(s string) {
-		if strings.Trim(s, " ") != "" {
-			p.searchBtn.Enable()
-		} else {
-			p.searchBtn.Disable()
-		}
-	}
-
-	p.searchBtn.OnTapped = func() {
-		p.appState.SetDataPageSearch(p.search.Text)
-		log.Printf("DO SEARCH %v \n", p.search.Text)
-		p.resetSearchBtn.Enable()
-	}
-
-	b := p.bufferSizeBinding
-	b.AddListener(binding.NewDataListener(func() {
-		v, _ := b.Get()
-
-		p.appState.SetDataPageBufferSize(v)
-
-		//TODO handle underflow
-		p.bufferProgress.Max = float64(v)
-		p.bufferProgress.Refresh()
-
-		log.Printf("bufferSizeBinding CHANGED to %v", v)
-		//retriggering validation, updating the binding alone doesn't do it
-	}))
-
-	p.bufferSize.OnChanged = func(s string) {
-		if p.bufferSize.Validate() != nil {
-			p.applyBufferSizeBtn.Disable()
-			return
-		}
-		log.Printf("bufferSize changed to %v", s)
-		boundValue, _ := b.Get()
-
-		if fmt.Sprintf("%d", boundValue) != s && s != "" {
-			p.applyBufferSizeBtn.Enable()
-		} else {
-			p.applyBufferSizeBtn.Disable()
-		}
-	}
-
-	p.applyBufferSizeBtn.OnTapped = func() {
-		v, err := strconv.Atoi(p.bufferSize.Text)
-		if err != nil {
-			return
-		}
-
-		b.Set(v)
-		p.bufferProgress.Max = float64(v)
-		p.bufferProgress.Refresh()
-
-		log.Println("applyBufferSizeBtn tapped")
-	}
-
-	p.resetSearchBtn.OnTapped = func() {
-		p.appState.SetDataPageSearch("")
-		p.search.Text = ""
-		p.search.Refresh()
-		p.searchBtn.Disable()
-		//TODO reset filter
-	}
-}
-func newDataPage(appState *services.AppManager) *dataPage {
-	p := &dataPage{appState: appState}
-
-	p.dataType = widget.NewRadioGroup([]string{"Events", "Readings"}, func(dataType string) {
-		log.Printf("Selected %s", dataType)
-		p.appState.SetDataPageSelectedDataType(dataType)
-	})
-	p.dataType.Horizontal = true
-
-	p.search = widget.NewEntry()
-	p.search.SetPlaceHolder("Type here to loosely search")
-
-	p.searchBtn = widget.NewButtonWithIcon("Search", theme.SearchIcon(), func() {})
-	p.resetSearchBtn = widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {})
-
-	p.bufferSizeBinding = binding.NewInt()
-	p.bufferSize = widget.NewEntryWithData(binding.IntToString(p.bufferSizeBinding))
-
-	p.bufferSize.SetPlaceHolder("Buffer size")
-	p.bufferSize.Validator = data.MinMaxValidator(config.MinBufferSize, config.MaxBufferSize, data.ErrInvalidBufferSize)
-	p.applyBufferSizeBtn = widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), func() {})
-
-	p.bufferProgress = widget.NewProgressBar()
-
-	p.bufferProgress.TextFormatter = func() string {
-		return fmt.Sprintf("Buffered %d/%d", int(p.bufferProgress.Value), int(p.bufferProgress.Max))
-	}
-
-	return p
-}
-
-func dataScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasObject {
-
-	connectionState := appState.GetConnectionState()
-	redisHost, redisPort := appState.GetRedisHostPort()
+	connectionState := appManager.GetConnectionState()
+	redisHost, redisPort := appManager.GetRedisHostPort()
 
 	disconnectedContent := container.NewCenter(container.NewVBox(
 		widget.NewCard("You are currently disconnected from EdgeX Foundry",
 			fmt.Sprintf("Would you like to connect to %v:%d?", redisHost, redisPort),
 			container.NewCenter(
 				widget.NewButtonWithIcon("Connect", theme.LoginIcon(), func() {
-					if err := appState.Connect(); err != nil {
+					if err := appManager.Connect(); err != nil {
 						uerr := errors.New(fmt.Sprintf("Cannot connect\n%s", err))
 						dialog.ShowError(uerr, win)
 						log.Printf("cannot connect: %v", err)
 					}
-					appState.Refresh()
+					appManager.Refresh()
 				}),
 			),
 		),
@@ -202,26 +59,26 @@ func dataScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasObjec
 		return disconnectedContent
 	}
 
-	p := newDataPage(appState)
+	h := appManager.GetPageHandler(DataPageKey).(*dataPageHandler)
 
 	// It will have a radio button to select between events or readings
 	radioGroup := container.NewVBox(
 		widget.NewLabelWithStyle("Show", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		p.dataType,
+		h.dataType,
 	)
 	searchBox := container.NewVBox(
 		widget.NewLabelWithStyle("Filter", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewBorder(nil, nil, nil, container.NewHBox(p.searchBtn, p.resetSearchBtn), container.NewMax(p.search)),
+		container.NewBorder(nil, nil, nil, container.NewHBox(h.searchBtn, h.resetSearchBtn), container.NewMax(h.search)),
 	)
 
 	bufferSizeContainer := container.NewGridWithColumns(2,
-		container.NewBorder(nil, nil, widget.NewLabel("Buffer size"), p.applyBufferSizeBtn, p.bufferSize),
-		p.bufferProgress,
+		container.NewBorder(nil, nil, widget.NewLabel("Buffer size"), h.applyBufferSizeBtn, h.bufferSize),
+		h.bufferProgress,
 	)
 
-	p.initialState()
-	p.rehydrateSession()
-	p.bindEventHandlers()
+	h.SetInitialState()
+	h.RehydrateSession()
+	h.SetupBindings()
 
 	renderCell := func(row, col int, label *widget.Label) {
 
@@ -409,4 +266,203 @@ func renderDataEventsTable(events []*dtos.Event, sortAsc bool) fyne.CanvasObject
 		table,
 	)
 
+}
+
+type dataPageHandler struct {
+	appState *services.AppManager
+	Key      widget.TreeNodeID
+
+	dataType           *widget.RadioGroup
+	search             *widget.Entry
+	searchBtn          *widget.Button
+	resetSearchBtn     *widget.Button
+	applyBufferSizeBtn *widget.Button
+	bufferSize         *widget.Entry
+	bufferSizeBinding  binding.Int
+	bufferUsageBinding binding.Float
+	bufferProgress     *widget.ProgressBar
+}
+
+func (p *dataPageHandler) SetInitialState() {
+	preferences := fyne.CurrentApp().Preferences()
+
+	if p.dataType.Selected == "" {
+		p.dataType.SetSelected(config.DataTypeEvents)
+	}
+	p.searchBtn.Disable()
+	p.resetSearchBtn.Disable()
+	p.applyBufferSizeBtn.Disable()
+
+	currentBuffsize := preferences.IntWithFallback(config.PrefBufferSizeInDataPage, config.DefaultBufferSizeInDataPage)
+
+	b := p.bufferSizeBinding
+	b.Set(currentBuffsize)
+	p.bufferSize.SetText(fmt.Sprintf("%d", currentBuffsize))
+
+	p.bufferProgress.Max = float64(currentBuffsize)
+}
+
+func (p *dataPageHandler) RehydrateSession() {
+	sessionSearch := p.appState.GetDataPageSearch()
+	if sessionSearch != nil {
+		p.search.Text = config.StringVal(sessionSearch)
+		p.resetSearchBtn.Enable()
+	}
+	bufferSize := p.appState.GetDataPageBufferSize()
+	if bufferSize != nil {
+		b := p.bufferSizeBinding
+		b.Set(*bufferSize)
+		log.Printf("bufferSize is %v", *bufferSize)
+		//p.bufferSize.SetText(fmt.Sprintf("%d", *bufferSize))
+		//p.bufferSize.SetText("100")
+	}
+}
+
+func (p *dataPageHandler) SetupBindings() {
+	p.search.OnChanged = func(s string) {
+		if strings.Trim(s, " ") != "" {
+			p.searchBtn.Enable()
+		} else {
+			p.searchBtn.Disable()
+		}
+	}
+
+	p.searchBtn.OnTapped = func() {
+		p.appState.SetDataPageSearch(p.search.Text)
+		log.Printf("DO SEARCH %v \n", p.search.Text)
+		p.resetSearchBtn.Enable()
+	}
+
+	b := p.bufferSizeBinding
+	b.AddListener(binding.NewDataListener(func() {
+		v, _ := b.Get()
+
+		p.appState.SetDataPageBufferSize(v)
+
+		//TODO handle underflow
+		p.bufferProgress.Max = float64(v)
+		p.bufferProgress.Refresh()
+
+		log.Printf("bufferSizeBinding CHANGED to %v", v)
+		//retriggering validation, updating the binding alone doesn't do it
+	}))
+
+	p.bufferSize.OnChanged = func(s string) {
+		if p.bufferSize.Validate() != nil {
+			p.applyBufferSizeBtn.Disable()
+			return
+		}
+		log.Printf("bufferSize changed to %v", s)
+		boundValue, _ := b.Get()
+
+		if fmt.Sprintf("%d", boundValue) != s && s != "" {
+			p.applyBufferSizeBtn.Enable()
+		} else {
+			p.applyBufferSizeBtn.Disable()
+		}
+	}
+
+	p.applyBufferSizeBtn.OnTapped = func() {
+		v, err := strconv.Atoi(p.bufferSize.Text)
+		if err != nil {
+			return
+		}
+
+		b.Set(v)
+		p.bufferProgress.Max = float64(v)
+		p.bufferProgress.Refresh()
+
+		log.Println("applyBufferSizeBtn tapped")
+	}
+
+	p.resetSearchBtn.OnTapped = func() {
+		p.appState.SetDataPageSearch("")
+		p.search.Text = ""
+		p.search.Refresh()
+		p.searchBtn.Disable()
+		log.Println("filter reset")
+	}
+
+	currentDataType := p.dataType.Selected
+	p.setBufferUsageBindingByDataType(currentDataType)
+
+	p.bufferUsageBinding.AddListener(binding.NewDataListener(func() {
+		log.Println("updated bufferUsageBinding")
+		p.bufferProgress.Refresh()
+	}))
+	p.bufferProgress.Bind(p.bufferUsageBinding)
+
+	p.dataType.OnChanged = func(currentDataType string) {
+		//change table
+		//change bindings
+		log.Printf("changed dataType to %v", currentDataType)
+		p.setBufferUsageBindingByDataType(currentDataType)
+	}
+
+}
+
+func (p *dataPageHandler) setBufferUsageBindingByDataType(dataType string) {
+	switch dataType {
+	case config.DataTypeEvents:
+		p.bufferUsageBinding = binding.BindFloat(config.Float(float64(p.appState.GetDB().GetEventsCount())))
+	case config.DataTypeReadings:
+		p.bufferUsageBinding = binding.BindFloat(config.Float(float64(p.appState.GetDB().GetReadingsCount())))
+	}
+}
+
+func (p *dataPageHandler) updateBufferUsageBindingByDataType(currentDataType string) {
+	switch currentDataType {
+	case config.DataTypeEvents:
+		p.bufferUsageBinding.Set(float64(p.appState.GetDB().GetEventsCount()))
+	case config.DataTypeReadings:
+		p.bufferUsageBinding.Set(float64(p.appState.GetDB().GetReadingsCount()))
+	}
+}
+
+func (p *dataPageHandler) OnEventReceived(event dtos.Event) {
+
+	if p.appState.GetConnectionState() != services.ClientConnected {
+		return
+	}
+
+	p.updateBufferUsageBindingByDataType(p.dataType.Selected)
+
+}
+
+func NewDataPageHandler(appState *services.AppManager) *dataPageHandler {
+
+	p := &dataPageHandler{
+		appState: appState,
+		Key:      DataPageKey,
+	}
+
+	p.dataType = widget.NewRadioGroup([]string{config.DataTypeEvents, config.DataTypeReadings}, func(dataType string) {
+		log.Printf("Selected %s", dataType)
+		p.appState.SetDataPageSelectedDataType(dataType)
+	})
+	p.dataType.Horizontal = true
+	p.dataType.Required = true
+
+	p.search = widget.NewEntry()
+	p.search.SetPlaceHolder("Type here to loosely search")
+
+	p.searchBtn = widget.NewButtonWithIcon("Search", theme.SearchIcon(), func() {})
+	p.resetSearchBtn = widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {})
+
+	p.bufferSizeBinding = binding.NewInt()
+	p.bufferSize = widget.NewEntryWithData(binding.IntToString(p.bufferSizeBinding))
+
+	// p.bufferUsageBinding = binding.BindFloat(config.Float(float64(p.appState.GetDB().Ge)))
+
+	p.bufferSize.SetPlaceHolder("Buffer size")
+	p.bufferSize.Validator = data.MinMaxValidator(config.MinBufferSize, config.MaxBufferSize, data.ErrInvalidBufferSize)
+	p.applyBufferSizeBtn = widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), func() {})
+
+	p.bufferProgress = widget.NewProgressBar()
+
+	p.bufferProgress.TextFormatter = func() string {
+		return fmt.Sprintf("Buffered %d/%d", int(p.bufferProgress.Value), int(p.bufferProgress.Max))
+	}
+
+	return p
 }

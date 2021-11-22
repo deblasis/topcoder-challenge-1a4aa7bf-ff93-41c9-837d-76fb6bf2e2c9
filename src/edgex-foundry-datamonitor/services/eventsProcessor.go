@@ -41,6 +41,8 @@ type EventProcessor struct {
 
 	LastEvents shortMemoryEventsSlicer
 
+	eventListeners []EventListener
+
 	sync.RWMutex
 }
 
@@ -49,6 +51,8 @@ func NewEventProcessor(eventsChannel chan *dtos.Event) *EventProcessor {
 		eventsChannel: eventsChannel,
 
 		state: make(chan processorState, 1),
+
+		eventListeners: make([]EventListener, 0),
 
 		lastEventChannel:   make(chan dtos.Event, 1),
 		lastReadingChannel: make(chan dtos.BaseReading, 1),
@@ -68,7 +72,15 @@ func (ep *EventProcessor) Deactivate() {
 	ep.state <- Paused
 }
 
+func (ep *EventProcessor) AttachListener(listener EventListener) {
+	ep.eventListeners = append(ep.eventListeners, listener)
+}
+
 func (ep *EventProcessor) processEvent(event *dtos.Event) {
+
+	for _, listener := range ep.eventListeners {
+		listener.OnEventReceived(*event)
+	}
 
 	ep.lastEventChannel <- *event
 	ep.TotalNumberEvents++
@@ -180,4 +192,9 @@ type shortMemoryEventsSlicer interface {
 	Add(e *dtos.Event)
 	Get() []*dtos.Event
 	GetJson() string
+}
+
+type EventListeners []EventListener
+type EventListener interface {
+	OnEventReceived(event dtos.Event)
 }
