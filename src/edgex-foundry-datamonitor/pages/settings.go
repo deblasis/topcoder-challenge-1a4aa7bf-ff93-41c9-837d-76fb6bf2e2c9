@@ -48,7 +48,7 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 
 	dataPageBufferSize := widget.NewEntry()
 	dataPageBufferSize.SetPlaceHolder("* required")
-	dataPageBufferSize.Validator = data.MinMaxValidator(1, 100000, data.ErrInvalidBufferSize)
+	dataPageBufferSize.Validator = data.MinMaxValidator(config.MinBufferSize, config.MaxBufferSize, data.ErrInvalidBufferSize)
 
 	//read from settings
 	hostname.SetText(preferences.StringWithFallback(config.PrefRedisHost, config.RedisDefaultHost))

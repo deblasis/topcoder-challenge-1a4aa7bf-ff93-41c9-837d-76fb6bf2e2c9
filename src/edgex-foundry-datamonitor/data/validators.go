@@ -16,8 +16,11 @@ package data
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
+
+	"github.com/deblasis/edgex-foundry-datamonitor/config"
 )
 
 func StringNotEmptyValidator(s string) error {
@@ -39,5 +42,5 @@ func MinMaxValidator(min, max int, validationError error) func(s string) error {
 }
 
 var (
-	ErrInvalidBufferSize = errors.New("Must be a number between 1 - 100000")
+	ErrInvalidBufferSize = errors.New(fmt.Sprintf("Must be a number between %d - %d", config.MinBufferSize, config.MaxBufferSize))
 )
