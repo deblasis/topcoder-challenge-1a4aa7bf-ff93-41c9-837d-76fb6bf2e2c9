@@ -37,3 +37,8 @@ const (
 	DefaultEventsTableSortOrderAscending = false
 	DefaultBufferSizeInDataPage          = 100
 )
+
+const (
+	MinBufferSize = 1
+	MaxBufferSize = 100000
+)

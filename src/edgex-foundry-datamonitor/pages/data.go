@@ -166,7 +166,7 @@ func newDataPage(appState *services.AppManager) *dataPage {
 	p.bufferSize = widget.NewEntryWithData(binding.IntToString(p.bufferSizeBinding))
 
 	p.bufferSize.SetPlaceHolder("Buffer size")
-	p.bufferSize.Validator = data.MinMaxValidator(1, 100000, data.ErrInvalidBufferSize)
+	p.bufferSize.Validator = data.MinMaxValidator(config.MinBufferSize, config.MaxBufferSize, data.ErrInvalidBufferSize)
 	p.applyBufferSizeBtn = widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), func() {})
 
 	p.bufferProgress = widget.NewProgressBar()
