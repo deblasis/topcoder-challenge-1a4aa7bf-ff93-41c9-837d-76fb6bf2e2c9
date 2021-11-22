@@ -21,6 +21,10 @@ const (
 	PrefShouldConnectAtStartup        = "_ShouldConnectAtStartup"
 	PrefEventsTableSortOrderAscending = "_EventsTableSortOrderAscending"
 	PrefBufferSizeInDataPage          = "_BufferSizeInDataPage"
+
+	SessionDataPageDataType   = "Session_DataPageDataType"
+	SessionDataPageBufferSize = "Session_DataPage_BufferSize"
+	SessionDataPageSearch     = "Session_DataPage_Search"
 )
 
 const (

@@ -14,7 +14,11 @@
 //
 package data
 
-import "errors"
+import (
+	"errors"
+	"log"
+	"strconv"
+)
 
 func StringNotEmptyValidator(s string) error {
 	if s == "" {
@@ -22,3 +26,18 @@ func StringNotEmptyValidator(s string) error {
 	}
 	return nil
 }
+
+func MinMaxValidator(min, max int, validationError error) func(s string) error {
+	return func(s string) error {
+		log.Printf("validating %v", s)
+		n, err := strconv.Atoi(s)
+		if err != nil || n < min || n > max {
+			return validationError
+		}
+		return nil
+	}
+}
+
+var (
+	ErrInvalidBufferSize = errors.New("Must be a number between 1 - 100000")
+)

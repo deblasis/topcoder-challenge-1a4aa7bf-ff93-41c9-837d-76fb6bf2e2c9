@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "env": {
-                "DISPLAY": "172.17.240.1:0.0",
+                "DISPLAY": "172.22.112.1:0.0",
                 "LIBGL_ALWAYS_INDIRECT":"0"
             },
             "mode": "auto",
