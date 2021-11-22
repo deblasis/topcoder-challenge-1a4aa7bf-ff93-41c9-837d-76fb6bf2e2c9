@@ -33,6 +33,8 @@ type AppManager struct {
 	ep *EventProcessor
 
 	drawFn func(*fyne.Container)
+
+	sessionState *SessionState
 }
 
 func NewAppManager(client *messaging.Client, cfg *config.Config, ep *EventProcessor) *AppManager {
@@ -41,6 +43,8 @@ func NewAppManager(client *messaging.Client, cfg *config.Config, ep *EventProces
 		client:  client,
 		config:  cfg,
 		ep:      ep,
+
+		sessionState: &SessionState{},
 	}
 }
 
@@ -90,18 +94,6 @@ func (a *AppManager) GetCurrentContainer() (*fyne.Container, func(*fyne.Containe
 	return a.currentContainer, a.drawFn
 }
 
-// func (a *AppState) IsConnected() bool {
-// 	a.RLock()
-// 	defer a.RUnlock()
-// 	return a.client.IsConnected
-// }
-
-// func (a *AppState) IsConnecting() bool {
-// 	a.RLock()
-// 	defer a.RUnlock()
-// 	return a.client.IsConnecting
-// }
-
 func (a *AppManager) GetConnectionState() ConnectionState {
 	a.RLock()
 	defer a.RUnlock()
@@ -130,4 +122,46 @@ func (a *AppManager) Disconnect() error {
 	defer a.Unlock()
 	a.ep.Deactivate()
 	return a.client.Disconnect()
+}
+
+type SessionState struct {
+	DataPage_SelectedDataType *string
+	DataPage_Search           *string
+	DataPage_BufferSize       *int
+}
+
+func (a *AppManager) SetDataPageSelectedDataType(dt string) {
+	a.Lock()
+	defer a.Unlock()
+	a.sessionState.DataPage_SelectedDataType = config.String(dt)
+}
+
+func (a *AppManager) SetDataPageSearch(search string) {
+	a.Lock()
+	defer a.Unlock()
+	a.sessionState.DataPage_Search = config.String(search)
+}
+
+func (a *AppManager) SetDataPageBufferSize(bs int) {
+	a.Lock()
+	defer a.Unlock()
+	a.sessionState.DataPage_BufferSize = config.Int(bs)
+}
+
+func (a *AppManager) GetDataPageSelectedDataType() *string {
+	a.RLock()
+	defer a.RUnlock()
+	return a.sessionState.DataPage_SelectedDataType
+}
+
+func (a *AppManager) GetDataPageSearch() *string {
+	a.RLock()
+	defer a.RUnlock()
+	return a.sessionState.DataPage_Search
+}
+
+func (a *AppManager) GetDataPageBufferSize() *int {
+	a.RLock()
+	defer a.RUnlock()
+	return a.sessionState.DataPage_BufferSize
 }

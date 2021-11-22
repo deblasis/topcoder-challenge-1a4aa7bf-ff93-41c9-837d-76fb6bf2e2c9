@@ -15,7 +15,6 @@
 package pages
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -49,14 +48,7 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 
 	dataPageBufferSize := widget.NewEntry()
 	dataPageBufferSize.SetPlaceHolder("* required")
-	dataPageBufferSize.Validator = func(s string) error {
-		n, err := strconv.Atoi(s)
-		if err != nil || n < 1 || n > 100000 {
-			return ErrInvalidBufferSize
-		}
-
-		return nil
-	}
+	dataPageBufferSize.Validator = data.MinMaxValidator(1, 100000, data.ErrInvalidBufferSize)
 
 	//read from settings
 	hostname.SetText(preferences.StringWithFallback(config.PrefRedisHost, config.RedisDefaultHost))
@@ -125,7 +117,3 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 		))
 
 }
-
-var (
-	ErrInvalidBufferSize = errors.New("Must be a number between 1 - 100000")
-)
