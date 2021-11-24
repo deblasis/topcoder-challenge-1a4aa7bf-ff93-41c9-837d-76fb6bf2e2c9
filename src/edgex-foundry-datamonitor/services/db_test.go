@@ -99,6 +99,15 @@ func Test_IngestEvents(t *testing.T) {
 	evts = db.GetEvents()
 	require.Equal(t, 0, len(evts))
 
+	db.OnEventReceived(dummyEvent())
+
+	require.Equal(t, 1, len(db.matchedEventIds.Serials))
+	require.Equal(t, 1, len(db.matchedReadingIds.Serials))
+
+	// no matches
+	evts = db.GetEvents()
+	require.Equal(t, 1, len(evts))
+
 }
 
 func dummyEvent() dtos.Event {

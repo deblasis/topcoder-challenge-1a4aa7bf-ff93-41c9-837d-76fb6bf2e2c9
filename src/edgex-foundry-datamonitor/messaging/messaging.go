@@ -16,12 +16,12 @@ package messaging
 
 import (
 	"errors"
-	"log"
 	"sync"
 
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	edgexM "github.com/edgexfoundry/go-mod-messaging/v2/messaging"
 	"github.com/edgexfoundry/go-mod-messaging/v2/pkg/types"
+	log "github.com/sirupsen/logrus"
 )
 
 type Client struct {
@@ -53,7 +53,7 @@ func (c *Client) Connect() error {
 	defer c.Unlock()
 	c.IsConnected = false
 
-	log.Printf("connecting to %v:%v\n", c.cfg.GetRedisHost(), c.cfg.GetRedisPort())
+	log.Infof("connecting to %v:%v\n", c.cfg.GetRedisHost(), c.cfg.GetRedisPort())
 
 	c.IsConnecting = true
 	defer func() {
@@ -70,7 +70,7 @@ func (c *Client) Connect() error {
 	})
 
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return err
 	}
 
@@ -78,7 +78,7 @@ func (c *Client) Connect() error {
 
 	err = c.edgeXClient.Connect()
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return err
 	}
 

@@ -17,10 +17,10 @@ package data
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
+	log "github.com/sirupsen/logrus"
 )
 
 func StringNotEmptyValidator(s string) error {
@@ -32,7 +32,7 @@ func StringNotEmptyValidator(s string) error {
 
 func MinMaxValidator(min, max int, validationError error) func(s string) error {
 	return func(s string) error {
-		log.Printf("validating %v", s)
+		log.Debug("validating %v", s)
 		n, err := strconv.Atoi(s)
 		if err != nil || n < min || n > max {
 			return validationError
@@ -42,5 +42,5 @@ func MinMaxValidator(min, max int, validationError error) func(s string) error {
 }
 
 var (
-	ErrInvalidBufferSize = errors.New(fmt.Sprintf("Must be a number between %d - %d", config.MinBufferSize, config.MaxBufferSize))
+	ErrInvalidBufferSize = fmt.Errorf("Must be a number between %d - %d", config.MinBufferSize, config.MaxBufferSize)
 )

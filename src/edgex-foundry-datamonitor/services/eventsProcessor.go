@@ -16,12 +16,14 @@ package services
 
 import (
 	"encoding/json"
-	"log"
 	"runtime"
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/asecurityteam/rolling"
+	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
 )
 
@@ -30,8 +32,8 @@ type EventProcessor struct {
 
 	state chan processorState
 
-	lastEventChannel   chan dtos.Event
-	lastReadingChannel chan dtos.BaseReading
+	eventReceivedChannel   chan struct{}
+	readingReceivedChannel chan struct{}
 
 	TotalNumberEvents   int
 	TotalNumberReadings int
@@ -54,9 +56,9 @@ func NewEventProcessor(eventsChannel chan *dtos.Event) *EventProcessor {
 
 		eventListeners: make([]EventListener, 0),
 
-		lastEventChannel:   make(chan dtos.Event, 1),
-		lastReadingChannel: make(chan dtos.BaseReading, 1),
-		LastEvents:         newTopNEventSlicer(5),
+		eventReceivedChannel:   make(chan struct{}, config.MaxBufferSize),
+		readingReceivedChannel: make(chan struct{}, config.MaxBufferSize),
+		LastEvents:             newTopNEventSlicer(5),
 	}
 }
 
@@ -82,50 +84,58 @@ func (ep *EventProcessor) processEvent(event *dtos.Event) {
 		listener.OnEventReceived(*event)
 	}
 
-	ep.lastEventChannel <- *event
+	ep.eventReceivedChannel <- struct{}{}
 	ep.TotalNumberEvents++
 	ep.TotalNumberReadings += len(event.Readings)
 
 	ep.LastEvents.Add(event)
 
-	for _, reading := range event.Readings {
-		ep.lastReadingChannel <- reading
+	for range event.Readings {
+		ep.readingReceivedChannel <- struct{}{}
 	}
 }
 
 func (ep *EventProcessor) Run() {
 
 	timeWindow := rolling.NewWindow(1000 * 60)
+	rollingEventsCounter := rolling.NewTimePolicy(timeWindow, time.Millisecond)
+	rollingReadingsCounter := rolling.NewTimePolicy(timeWindow, time.Millisecond)
 
-	var rollingEventsCounter = rolling.NewTimePolicy(timeWindow, time.Millisecond)
 	go func() {
-		for range time.Tick(time.Millisecond) {
-			<-ep.lastEventChannel
+		for range ep.eventReceivedChannel {
+			// if we get more events than we can process, the Append below panics, catching it, needs investigation
+			defer func() {
+				if err := recover(); err != nil {
+					log.Errorf("panic occurred:", err)
+				}
+			}()
 			rollingEventsCounter.Append(1)
 		}
 	}()
 
-	var rollingReadingsCounter = rolling.NewTimePolicy(timeWindow, time.Millisecond)
 	go func() {
-		for range time.Tick(time.Millisecond) {
-			<-ep.lastReadingChannel
+		for range ep.readingReceivedChannel {
+			// if we get more events than we can process, the Append below panics, catching it, needs investigation
+			defer func() {
+				if err := recover(); err != nil {
+					log.Errorf("panic occurred:", err)
+				}
+			}()
 			rollingReadingsCounter.Append(1)
 		}
 	}()
 
 	go func() {
-		for {
+		for range time.Tick(time.Millisecond * 200) {
 			eventsPerMinute := rollingEventsCounter.Reduce(rolling.Sum)
 			ep.EventsPerSecondLastMinute = eventsPerMinute / 60
-			time.Sleep(time.Millisecond * 200) //throttling a bit
 		}
 	}()
 
 	go func() {
-		for {
+		for range time.Tick(time.Millisecond * 200) {
 			readingsPerMinute := rollingReadingsCounter.Reduce(rolling.Sum)
 			ep.ReadingsPerSecondLastMinute = readingsPerMinute / 60
-			time.Sleep(time.Millisecond * 200) //throttling a bit
 		}
 	}()
 
@@ -138,12 +148,12 @@ func (ep *EventProcessor) Run() {
 		case state = <-ep.state:
 			switch state {
 			case Stopped:
-				log.Println("EventsProcessor: Stopped")
+				log.Info("EventsProcessor: Stopped")
 				return
 			case Running:
-				log.Println("EventsProcessor: Running")
+				log.Info("EventsProcessor: Running")
 			case Paused:
-				log.Println("EventsProcessor: Paused")
+				log.Info("EventsProcessor: Paused")
 			}
 
 		case event := <-ep.eventsChannel:

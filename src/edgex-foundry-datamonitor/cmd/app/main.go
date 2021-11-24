@@ -17,8 +17,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -34,11 +34,14 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	log "github.com/sirupsen/logrus"
 )
 
 var topWindow fyne.Window
 
 func main() {
+	log.SetLevel(log.InfoLevel)
+
 	a := app.NewWithID("edgex-datamonitor")
 	a.SetIcon(bundled.ResourceBgxPng)
 	logLifecycle(a)
@@ -52,10 +55,18 @@ func main() {
 	if err != nil {
 		uerr := errors.New("Error while initializing client")
 		dialog.ShowError(uerr, topWindow)
-		log.Println(err)
+		log.Error(err)
 	}
 
-	events := make(chan *dtos.Event)
+	events := make(chan *dtos.Event, config.MaxBufferSize)
+
+	go func() {
+		for range time.Tick(time.Second * 5) {
+			// 0 = good, high means that we are overwhelmed
+			log.Infof("events channel usage %v/%v", len(events), cap(events))
+		}
+	}()
+
 	ep := services.NewEventProcessor(events)
 	db := services.NewDB(config.DefaultFilteringUpdateCadenceMs)
 	ep.AttachListener(db)
@@ -89,7 +100,7 @@ func main() {
 						}
 						uerr := errors.New("Error while subscribing to Redis")
 						dialog.ShowError(uerr, topWindow)
-						log.Println(err)
+						log.Error(err)
 						client.IsConnecting = false
 						ok <- false
 						break LOOP
@@ -116,9 +127,9 @@ func main() {
 			Content: fmt.Sprintf("Connecting to %v:%v", cfg.GetRedisHost(), cfg.GetRedisPort()),
 		})
 		if err = client.Connect(); err != nil {
-			uerr := errors.New(fmt.Sprintf("Cannot connect\n%s", err))
+			uerr := fmt.Errorf("Cannot connect\n%s", err)
 			dialog.ShowError(uerr, topWindow)
-			log.Println(err)
+			log.Error(err)
 		}
 
 	}
@@ -160,7 +171,7 @@ func main() {
 		w.SetContent(navBar)
 	} else {
 		split := container.NewHSplit(navBar, page)
-		split.Offset = 0.2
+		split.Offset = 0.0
 		w.SetContent(split)
 	}
 	w.Resize(fyne.NewSize(1024, 768))
@@ -169,16 +180,16 @@ func main() {
 
 func logLifecycle(a fyne.App) {
 	a.Lifecycle().SetOnStarted(func() {
-		log.Println("Lifecycle: Started")
+		log.Info("Lifecycle: Started")
 	})
 	a.Lifecycle().SetOnStopped(func() {
-		log.Println("Lifecycle: Stopped")
+		log.Info("Lifecycle: Stopped")
 	})
 	a.Lifecycle().SetOnEnteredForeground(func() {
-		log.Println("Lifecycle: Entered Foreground")
+		log.Info("Lifecycle: Entered Foreground")
 	})
 	a.Lifecycle().SetOnExitedForeground(func() {
-		log.Println("Lifecycle: Exited Foreground")
+		log.Info("Lifecycle: Exited Foreground")
 	})
 }
 
