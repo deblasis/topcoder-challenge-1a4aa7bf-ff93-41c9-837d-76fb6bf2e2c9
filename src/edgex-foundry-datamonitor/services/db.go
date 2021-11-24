@@ -17,12 +17,12 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/edgexfoundry/go-mod-core-contracts/v2/dtos"
@@ -65,17 +65,6 @@ func NewDB(filterCadenceMs int64) *DB {
 		},
 	}
 	db.initCollections()
-
-	go func() {
-		cadence := time.NewTimer(time.Millisecond * time.Duration(filterCadenceMs))
-
-		for range cadence.C {
-			log.Println("running autofiltering")
-			db.filter()
-		}
-
-	}()
-
 	return db
 }
 
@@ -119,15 +108,56 @@ func (db *DB) UpdateFilter(filter string) {
 
 	db.filter()
 
-	db.refreshMatchingIndex(db.events, "serial", isMatchingEventType)
-	db.refreshMatchingIndex(db.readings, "serial", isMatchingReadingType)
+}
 
+func (db *DB) GetEventsCount() int64 {
+	var count int64
+	db.events.Query(func(txn *column.Txn) error {
+		if db.filterString == "" {
+			count = int64(txn.Count())
+		} else {
+			count = int64(txn.With("matching_serial_idx").Count())
+		}
+		return nil
+	})
+	return count
+}
+
+func (db *DB) GetTotalEventsCount() int64 {
+	var count int64
+	db.events.Query(func(txn *column.Txn) error {
+		count = int64(txn.Count())
+		return nil
+	})
+	return count
+}
+
+func (db *DB) GetReadingsCount() int64 {
+	var count int64
+	db.readings.Query(func(txn *column.Txn) error {
+		if db.filterString == "" {
+			count = int64(txn.Count())
+		} else {
+			count = int64(txn.With("matching_serial_idx").Count())
+		}
+		return nil
+	})
+	return count
+}
+
+func (db *DB) GetTotalReadingsCount() int64 {
+	var count int64
+	db.readings.Query(func(txn *column.Txn) error {
+		count = int64(txn.Count())
+		return nil
+	})
+	return count
 }
 
 func (db *DB) GetEvents() []dtos.Event {
 	events := make([]dtos.Event, 0)
 
-	projectFunc := func(v column.Selector) {
+	mapFunc := func(v column.Selector) {
 		var (
 			readings []dtos.BaseReading
 			tags     map[string]string
@@ -151,9 +181,9 @@ func (db *DB) GetEvents() []dtos.Event {
 	db.events.Query(func(txn *column.Txn) error {
 
 		if db.filterString == "" {
-			txn.Select(projectFunc)
+			txn.Select(mapFunc)
 		} else {
-			txn.With("matching_serial_idx").Select(projectFunc)
+			txn.With("matching_serial_idx").Select(mapFunc)
 		}
 		return nil
 	})
@@ -163,7 +193,7 @@ func (db *DB) GetEvents() []dtos.Event {
 func (db *DB) GetReadings() []dtos.BaseReading {
 	readings := make([]dtos.BaseReading, 0)
 
-	projectFunc := func(v column.Selector) {
+	mapFunc := func(v column.Selector) {
 
 		readings = append(readings, dtos.BaseReading{
 			Id:           v.StringAt("reading_id"),
@@ -187,9 +217,9 @@ func (db *DB) GetReadings() []dtos.BaseReading {
 	db.readings.Query(func(txn *column.Txn) error {
 
 		if db.filterString == "" {
-			txn.Select(projectFunc)
+			txn.Select(mapFunc)
 		} else {
-			txn.With("matching_serial_idx").Select(projectFunc)
+			txn.With("matching_serial_idx").Select(mapFunc)
 		}
 		return nil
 	})
@@ -204,13 +234,15 @@ func (db *DB) refreshIndex(c *column.Collection, fieldName string, t indexType) 
 	c.DropIndex(filterMatchesIndex(fieldName))
 	c.CreateIndex(filterMatchesIndex(fieldName), fieldName, func(r column.Reader) bool {
 
+		//Loose search, assuming it's case insensitive...
+
 		switch t {
 		case stringType, byteArrType:
-			return strings.Contains(r.String(), db.filterString)
+			return strings.Contains(strings.ToLower(r.String()), strings.ToLower(db.filterString))
 		case intType:
-			return strings.Contains(fmt.Sprintf("%v", r.Int()), db.filterString)
+			return strings.Contains(strings.ToLower(fmt.Sprintf("%v", r.Int())), strings.ToLower(db.filterString))
 		default:
-			log.Panicf("unhandled type %v in refreshIndex", t)
+			log.Fatalf("unhandled type %v in refreshIndex", t)
 		}
 		return false
 	})
@@ -219,18 +251,24 @@ func (db *DB) refreshIndex(c *column.Collection, fieldName string, t indexType) 
 func (db *DB) refreshMatchingIndex(c *column.Collection, fieldName string, t indexType) {
 	c.DropIndex("matching_" + filterMatchesIndex(fieldName))
 	c.CreateIndex("matching_"+filterMatchesIndex(fieldName), fieldName, func(r column.Reader) bool {
+
 		switch t {
 		case isMatchingEventType:
+			db.matchedEventIds.RLock()
+			defer db.matchedEventIds.RUnlock()
 
 			serial, _ := strconv.Atoi(r.String())
 			_, matching := db.matchedEventIds.Serials[int64(serial)]
 			return matching
 		case isMatchingReadingType:
+			db.matchedReadingIds.RLock()
+			defer db.matchedReadingIds.RUnlock()
+
 			serial, _ := strconv.Atoi(r.String())
 			_, matching := db.matchedReadingIds.Serials[int64(serial)]
 			return matching
 		default:
-			log.Panicf("unhandled type %v in refreshMatchingIndex", t)
+			log.Fatalf("unhandled type %v in refreshMatchingIndex", t)
 		}
 		return false
 	})
@@ -254,7 +292,6 @@ func (db *DB) filter() {
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-
 	go func() {
 		defer wg.Done()
 		db.events.Query(func(txn *column.Txn) error {
@@ -265,13 +302,15 @@ func (db *DB) filter() {
 				Union(filterMatchesIndex("event_origin")).
 				Union(filterMatchesIndex("event_tags")).
 				Select(func(v column.Selector) {
+					serial, err := strconv.Atoi(v.ValueAt("serial").(string))
+					if err != nil {
+						return
+					}
 					db.matchedEventIds.Lock()
 					defer db.matchedEventIds.Unlock()
-					serial, _ := strconv.Atoi(v.ValueAt("serial").(string))
-
-					log.Printf("event serial %v matched filter %v", serial, db.filterString)
 
 					db.matchedEventIds.Serials[int64(serial)] = struct{}{}
+
 				})
 
 			return nil
@@ -298,11 +337,12 @@ func (db *DB) filter() {
 				Union(filterMatchesIndex("reading_mediaType")).
 				Union(filterMatchesIndex("reading_value")).
 				Select(func(v column.Selector) {
+					serial, err := strconv.Atoi(v.ValueAt("serial").(string))
+					if err != nil {
+						return
+					}
 					db.matchedReadingIds.Lock()
 					defer db.matchedReadingIds.Unlock()
-					serial, _ := strconv.Atoi(v.ValueAt("serial").(string))
-
-					log.Printf("reading serial %v matched filter %v", serial, db.filterString)
 
 					db.matchedReadingIds.Serials[int64(serial)] = struct{}{}
 				})
@@ -312,11 +352,15 @@ func (db *DB) filter() {
 	}()
 
 	wg.Wait()
+
+	db.refreshMatchingIndex(db.events, "serial", isMatchingEventType)
+	db.refreshMatchingIndex(db.readings, "serial", isMatchingReadingType)
+
 }
 
-func (db *DB) IngestEvent(event dtos.Event) {
+func (db *DB) OnEventReceived(event dtos.Event) {
+
 	eSerial := db.nextEventSerial()
-	fmt.Printf("eventSerial: %v\n", eSerial)
 
 	db.events.InsertObject(eventToMap(event, eSerial))
 	for _, reading := range event.Readings {
@@ -325,7 +369,7 @@ func (db *DB) IngestEvent(event dtos.Event) {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		db.evictOldEvents()
@@ -335,7 +379,14 @@ func (db *DB) IngestEvent(event dtos.Event) {
 		defer wg.Done()
 		db.evictOldReadings()
 	}()
+
+	go func() {
+		defer wg.Done()
+		db.filter()
+	}()
+
 	wg.Wait()
+
 }
 
 func (db *DB) evictOldEvents() {
@@ -344,7 +395,6 @@ func (db *DB) evictOldEvents() {
 			serial, _ := strconv.Atoi(v.(string))
 			return int64(serial) <= db.lastEventSerial()-db.bufferSize
 		}).Range("serial", func(v column.Cursor) {
-			log.Printf("deleting event %v", v.Selector.ValueAt("serial"))
 			serial, _ := strconv.Atoi(v.Selector.ValueAt("serial").(string))
 			db.matchedEventIds.Lock()
 			defer db.matchedEventIds.Unlock()
@@ -363,8 +413,6 @@ func (db *DB) evictOldReadings() {
 			serial, _ := strconv.Atoi(v.(string))
 			return int64(serial) <= db.lastReadingSerial()-db.bufferSize
 		}).Range("serial", func(v column.Cursor) {
-			log.Printf("deleting reading %v", v.Selector.ValueAt("serial"))
-
 			serial, _ := strconv.Atoi(v.Selector.ValueAt("serial").(string))
 			db.matchedReadingIds.Lock()
 			defer db.matchedReadingIds.Unlock()
@@ -388,7 +436,7 @@ func eventToMap(event dtos.Event, serial int64) map[string]interface{} {
 		"event_deviceName":    event.DeviceName,
 		"event_profileName":   event.ProfileName,
 		"event_created":       event.Created,
-		"event_origin":        event.Created,
+		"event_origin":        event.Origin,
 		"event_readingsCount": len(event.Readings),
 		"event_readings":      readingsJson,
 		"event_tags":          string(tagsJson),
@@ -408,7 +456,7 @@ func readingToMap(event dtos.Event, reading dtos.BaseReading, serial int64) map[
 		"event_deviceName":  event.DeviceName,
 		"event_profileName": event.ProfileName,
 		"event_created":     event.Created,
-		"event_origin":      event.Created,
+		"event_origin":      event.Origin,
 		"event_tags":        string(tags),
 
 		"reading_id":           reading.Id,
@@ -446,6 +494,7 @@ func setupEventFields(c *column.Collection) {
 	c.CreateColumn("event_profileName", column.ForString())
 	c.CreateColumn("event_created", column.ForInt64())
 	c.CreateColumn("event_origin", column.ForInt64())
+	c.CreateColumn("event_readings", column.ForString())
 	c.CreateColumn("event_readingCount", column.ForInt64())
 	c.CreateColumn("event_tags", column.ForString())
 }

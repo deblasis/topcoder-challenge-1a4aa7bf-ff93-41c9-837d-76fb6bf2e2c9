@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/widget"
 	"github.com/deblasis/edgex-foundry-datamonitor/config"
 	"github.com/deblasis/edgex-foundry-datamonitor/messaging"
 )
@@ -28,28 +29,49 @@ type AppManager struct {
 	config           *config.Config
 	currentContainer *fyne.Container
 
+	CurrentPage widget.TreeNodeID
+
 	navBar *fyne.Container
 
+	db *DB
 	ep *EventProcessor
+
+	pageHandlers map[widget.TreeNodeID]PageHandler
 
 	drawFn func(*fyne.Container)
 
 	sessionState *SessionState
 }
 
-func NewAppManager(client *messaging.Client, cfg *config.Config, ep *EventProcessor) *AppManager {
+func NewAppManager(client *messaging.Client, cfg *config.Config, ep *EventProcessor, db *DB) *AppManager {
+
 	return &AppManager{
 		RWMutex: sync.RWMutex{},
 		client:  client,
 		config:  cfg,
+		db:      db,
 		ep:      ep,
+
+		pageHandlers: make(map[widget.TreeNodeID]PageHandler),
 
 		sessionState: &SessionState{},
 	}
 }
 
+func (a *AppManager) SetPageHandler(page widget.TreeNodeID, handler PageHandler) {
+	a.pageHandlers[page] = handler
+}
+
+func (a *AppManager) GetPageHandler(page widget.TreeNodeID) PageHandler {
+	return a.pageHandlers[page]
+}
+
 func (a *AppManager) GetEventProcessor() *EventProcessor {
 	return a.ep
+}
+
+func (a *AppManager) GetDB() *DB {
+	return a.db
 }
 
 func (a *AppManager) SetCurrentContainer(container *fyne.Container, drawFn func(*fyne.Container)) {
@@ -140,12 +162,14 @@ func (a *AppManager) SetDataPageSearch(search string) {
 	a.Lock()
 	defer a.Unlock()
 	a.sessionState.DataPage_Search = config.String(search)
+	a.db.UpdateFilter(search)
 }
 
 func (a *AppManager) SetDataPageBufferSize(bs int) {
 	a.Lock()
 	defer a.Unlock()
 	a.sessionState.DataPage_BufferSize = config.Int(bs)
+	a.db.UpdateBufferSize(int64(bs))
 }
 
 func (a *AppManager) GetDataPageSelectedDataType() *string {

@@ -16,9 +16,10 @@ package pages
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -72,10 +73,10 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 				Widget:   eventsSortedAscendingly,
 				HintText: "",
 			},
-			{Text: "Buffer size in Data page", Widget: dataPageBufferSize},
+			{Text: "Initial buffer size in Data page", Widget: dataPageBufferSize},
 		},
 		OnSubmit: func() {
-			log.Println("Settings form submitted")
+			log.Info("Settings form submitted")
 
 			preferences.SetString(config.PrefRedisHost, strings.TrimSpace(hostname.Text))
 
@@ -104,7 +105,7 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 		hostname.Validate()
 		port.Validate()
 		form.Refresh()
-		log.Println("Settings reset to default")
+		log.Info("Settings reset to default")
 	}
 
 	return container.NewMax(

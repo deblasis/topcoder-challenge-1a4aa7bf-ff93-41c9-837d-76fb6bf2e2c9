@@ -17,8 +17,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -34,11 +34,14 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	log "github.com/sirupsen/logrus"
 )
 
 var topWindow fyne.Window
 
 func main() {
+	log.SetLevel(log.InfoLevel)
+
 	a := app.NewWithID("edgex-datamonitor")
 	a.SetIcon(bundled.ResourceBgxPng)
 	logLifecycle(a)
@@ -52,11 +55,32 @@ func main() {
 	if err != nil {
 		uerr := errors.New("Error while initializing client")
 		dialog.ShowError(uerr, topWindow)
-		log.Println(err)
+		log.Error(err)
 	}
 
-	events := make(chan *dtos.Event)
+	events := make(chan *dtos.Event, config.MaxBufferSize)
+
+	go func() {
+		for range time.Tick(time.Second * 5) {
+			// 0 = good, high means that we are overwhelmed
+			log.Infof("events channel usage %v/%v", len(events), cap(events))
+		}
+	}()
+
 	ep := services.NewEventProcessor(events)
+	db := services.NewDB(config.DefaultFilteringUpdateCadenceMs)
+	ep.AttachListener(db)
+
+	AppManager := services.NewAppManager(client, cfg, ep, db)
+
+	homePageHandler := pages.NewHomePageHandler(AppManager)
+	AppManager.SetPageHandler(pages.HomePageKey, homePageHandler)
+	ep.AttachListener(homePageHandler)
+
+	dataPageHandler := pages.NewDataPageHandler(AppManager)
+	AppManager.SetPageHandler(pages.DataPageKey, dataPageHandler)
+	ep.AttachListener(dataPageHandler)
+
 	go ep.Run()
 
 	client.OnConnect = func() bool {
@@ -76,7 +100,7 @@ func main() {
 						}
 						uerr := errors.New("Error while subscribing to Redis")
 						dialog.ShowError(uerr, topWindow)
-						log.Println(err)
+						log.Error(err)
 						client.IsConnecting = false
 						ok <- false
 						break LOOP
@@ -95,8 +119,6 @@ func main() {
 		return <-ok
 	}
 
-	AppManager := services.NewAppManager(client, cfg, ep)
-
 	shouldConnect := a.Preferences().BoolWithFallback(config.PrefShouldConnectAtStartup, false)
 
 	if shouldConnect {
@@ -105,9 +127,9 @@ func main() {
 			Content: fmt.Sprintf("Connecting to %v:%v", cfg.GetRedisHost(), cfg.GetRedisPort()),
 		})
 		if err = client.Connect(); err != nil {
-			uerr := errors.New(fmt.Sprintf("Cannot connect\n%s", err))
+			uerr := fmt.Errorf("Cannot connect\n%s", err)
 			dialog.ShowError(uerr, topWindow)
-			log.Println(err)
+			log.Error(err)
 		}
 
 	}
@@ -116,7 +138,8 @@ func main() {
 	title := widget.NewLabel("Component name")
 	intro := widget.NewLabel("An introduction would probably go\nhere, as well as a")
 	intro.Wrapping = fyne.TextWrapWord
-	setPage := func(uid string, t pages.Page, appMgr *services.AppManager) {
+	setPage := func(uid widget.TreeNodeID, t pages.Page, appMgr *services.AppManager) {
+		appMgr.CurrentPage = uid
 		if fyne.CurrentDevice().IsMobile() {
 			child := a.NewWindow(t.Title)
 			topWindow = child
@@ -148,7 +171,7 @@ func main() {
 		w.SetContent(navBar)
 	} else {
 		split := container.NewHSplit(navBar, page)
-		split.Offset = 0.2
+		split.Offset = 0.0
 		w.SetContent(split)
 	}
 	w.Resize(fyne.NewSize(1024, 768))
@@ -157,27 +180,27 @@ func main() {
 
 func logLifecycle(a fyne.App) {
 	a.Lifecycle().SetOnStarted(func() {
-		log.Println("Lifecycle: Started")
+		log.Info("Lifecycle: Started")
 	})
 	a.Lifecycle().SetOnStopped(func() {
-		log.Println("Lifecycle: Stopped")
+		log.Info("Lifecycle: Stopped")
 	})
 	a.Lifecycle().SetOnEnteredForeground(func() {
-		log.Println("Lifecycle: Entered Foreground")
+		log.Info("Lifecycle: Entered Foreground")
 	})
 	a.Lifecycle().SetOnExitedForeground(func() {
-		log.Println("Lifecycle: Exited Foreground")
+		log.Info("Lifecycle: Exited Foreground")
 	})
 }
 
-func makeNav(setPage func(_ string, page pages.Page, _ *services.AppManager), appMgr *services.AppManager) fyne.CanvasObject {
+func makeNav(setPage func(_ widget.TreeNodeID, page pages.Page, appMgr *services.AppManager), appMgr *services.AppManager) fyne.CanvasObject {
 	a := fyne.CurrentApp()
 
 	tree := &widget.Tree{
-		ChildUIDs: func(uid string) []string {
+		ChildUIDs: func(uid widget.TreeNodeID) []widget.TreeNodeID {
 			return pages.PageIndex[uid]
 		},
-		IsBranch: func(uid string) bool {
+		IsBranch: func(uid widget.TreeNodeID) bool {
 			children, ok := pages.PageIndex[uid]
 
 			return ok && len(children) > 0
@@ -185,7 +208,7 @@ func makeNav(setPage func(_ string, page pages.Page, _ *services.AppManager), ap
 		CreateNode: func(branch bool) fyne.CanvasObject {
 			return widget.NewLabel("Nav widgets")
 		},
-		UpdateNode: func(uid string, branch bool, obj fyne.CanvasObject) {
+		UpdateNode: func(uid widget.TreeNodeID, branch bool, obj fyne.CanvasObject) {
 			t, ok := pages.Pages[uid]
 			if !ok {
 				fyne.LogError("Missing panel: "+uid, nil)
@@ -193,7 +216,7 @@ func makeNav(setPage func(_ string, page pages.Page, _ *services.AppManager), ap
 			}
 			obj.(*widget.Label).SetText(t.Title)
 		},
-		OnSelected: func(uid string) {
+		OnSelected: func(uid widget.TreeNodeID) {
 			if t, ok := pages.Pages[uid]; ok {
 				setPage(uid, t, appMgr)
 			}

@@ -25,7 +25,7 @@ import (
 func Test_IngestEvents(t *testing.T) {
 
 	db := NewDB(1000)
-	db.IngestEvent(dummyEvent())
+	db.OnEventReceived(dummyEvent())
 
 	require.Equal(t, 1, db.readings.Count())
 	require.Equal(t, 1, db.events.Count())
@@ -33,8 +33,8 @@ func Test_IngestEvents(t *testing.T) {
 	// limiting to 2 records, adding 2 more
 	db.UpdateBufferSize(2)
 
-	db.IngestEvent(dummyEvent())
-	db.IngestEvent(dummyEvent())
+	db.OnEventReceived(dummyEvent())
+	db.OnEventReceived(dummyEvent())
 
 	// not filtering, we expect 2 events
 	evts := db.GetEvents()
@@ -48,7 +48,7 @@ func Test_IngestEvents(t *testing.T) {
 	require.Equal(t, 2, db.readings.Count())
 	require.Equal(t, 2, db.events.Count())
 
-	db.IngestEvent(interestingEvent())
+	db.OnEventReceived(interestingEvent())
 	require.Equal(t, 0, len(db.matchedEventIds.Serials))
 
 	evts = db.GetEvents()
@@ -98,6 +98,15 @@ func Test_IngestEvents(t *testing.T) {
 	// no matches
 	evts = db.GetEvents()
 	require.Equal(t, 0, len(evts))
+
+	db.OnEventReceived(dummyEvent())
+
+	require.Equal(t, 1, len(db.matchedEventIds.Serials))
+	require.Equal(t, 1, len(db.matchedReadingIds.Serials))
+
+	// no matches
+	evts = db.GetEvents()
+	require.Equal(t, 1, len(evts))
 
 }
 

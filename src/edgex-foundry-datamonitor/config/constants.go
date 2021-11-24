@@ -36,9 +36,15 @@ const (
 	DefaultShouldConnectAtStartup        = false
 	DefaultEventsTableSortOrderAscending = false
 	DefaultBufferSizeInDataPage          = 100
+	DefaultFilteringUpdateCadenceMs      = 1000
 )
 
 const (
 	MinBufferSize = 1
 	MaxBufferSize = 100000
+)
+
+const (
+	DataTypeEvents   = "Events"
+	DataTypeReadings = "Readings"
 )

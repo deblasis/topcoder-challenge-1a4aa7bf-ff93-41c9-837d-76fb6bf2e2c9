@@ -16,6 +16,7 @@ package pages
 
 import (
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/widget"
 	"github.com/deblasis/edgex-foundry-datamonitor/services"
 )
 
@@ -25,14 +26,20 @@ type Page struct {
 }
 
 var (
-	Pages = map[string]Page{
-		"home":     {"Home", "", homeScreen},
-		"data":     {"Data", "", dataScreen},
-		"settings": {"Settings", "", settingsScreen},
+	Pages = map[widget.TreeNodeID]Page{
+		HomePageKey:     {Title: "Home", Intro: "", View: homeScreen},
+		DataPageKey:     {Title: "Data", Intro: "", View: dataScreen},
+		SettingsPageKey: {Title: "Settings", Intro: "", View: settingsScreen},
 	}
 
 	//PageIndex  defines how our pages should be laid out in the index tree
-	PageIndex = map[string][]string{
-		"": {"home", "data", "settings"},
+	PageIndex = map[widget.TreeNodeID][]widget.TreeNodeID{
+		"": {HomePageKey, DataPageKey, SettingsPageKey},
 	}
+)
+
+const (
+	HomePageKey     widget.TreeNodeID = "home"
+	DataPageKey     widget.TreeNodeID = "data"
+	SettingsPageKey widget.TreeNodeID = "settings"
 )
