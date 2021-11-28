@@ -86,6 +86,9 @@ func settingsScreen(win fyne.Window, appState *services.AppManager) fyne.CanvasO
 			preferences.SetBool(config.PrefShouldConnectAtStartup, shouldConnectAutomatically.Checked)
 			preferences.SetBool(config.PrefEventsTableSortOrderAscending, eventsSortedAscendingly.Checked)
 
+			bufferSize, _ := strconv.Atoi(dataPageBufferSize.Text)
+			preferences.SetInt(config.PrefBufferSizeInDataPage, bufferSize)
+
 			a.SendNotification(&fyne.Notification{
 				Title:   "EdgeX Redis Pub/Sub Connection Settings",
 				Content: fmt.Sprintf("%v:%v", hostname.Text, port.Text),
