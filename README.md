@@ -1,6 +1,8 @@
 # topcoder-challenge-1a4aa7bf-ff93-41c9-837d-76fb6bf2e2c9
 EdgeX Foundry(TM) - Build Simple Data Monitor UI #02
 
+This is the implementation of the challenge https://www.topcoder.com/challenges/1a4aa7bf-ff93-41c9-837d-76fb6bf2e2c9 for which I classified 1st.
+
 TLDR; left is Linux, right is Windows
 <img src="./assets/crossplatform.jpg" alt="crossplatform" />
 
